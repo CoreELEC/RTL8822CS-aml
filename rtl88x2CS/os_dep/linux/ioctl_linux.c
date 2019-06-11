@@ -5733,6 +5733,7 @@ bad:
 
 }
 
+#ifdef CONFIG_MP_INCLUDED
 static int rtw_cta_test_start(struct net_device *dev,
 			      struct iw_request_info *info,
 			      union iwreq_data *wrqu, char *extra)
@@ -5751,7 +5752,7 @@ static int rtw_cta_test_start(struct net_device *dev,
 
 	return ret;
 }
-
+#endif
 extern int rtw_change_ifname(_adapter *padapter, const char *ifname);
 static int rtw_rereg_nd_name(struct net_device *dev,
 			     struct iw_request_info *info,
@@ -8165,7 +8166,27 @@ static int rtw_pm_set(struct net_device *dev,
 	} else if (_rtw_memcmp(extra, "lps_level=", 10)) {
 		if (sscanf(extra + 10, "%u", &mode) > 0)
 			ret = rtw_pm_set_lps_level(padapter, mode);
-	} else
+#ifdef CONFIG_LPS_1T1R
+	} else if (_rtw_memcmp(extra, "lps_1t1r=", 9)) {
+		if (sscanf(extra + 9, "%u", &mode) > 0)
+			ret = rtw_pm_set_lps_1t1r(padapter, mode);
+#endif
+	} 
+#ifdef CONFIG_WOWLAN
+	else if (_rtw_memcmp(extra, "wow_lps=", 8)) {
+		sscanf(extra + 8, "%u", &mode);
+		ret = rtw_pm_set_wow_lps(padapter, mode);
+	} else if (_rtw_memcmp(extra, "wow_lps_level=", 14)) {
+		if (sscanf(extra + 14, "%u", &mode) > 0)
+			ret = rtw_pm_set_wow_lps_level(padapter, mode);
+	#ifdef CONFIG_LPS_1T1R
+	} else if (_rtw_memcmp(extra, "wow_lps_1t1r=", 13)) {
+		if (sscanf(extra + 13, "%u", &mode) > 0)
+			ret = rtw_pm_set_wow_lps_1t1r(padapter, mode);
+	#endif
+	}
+#endif /* CONFIG_WOWLAN */
+	else
 		ret = -EINVAL;
 
 	return ret;
@@ -9037,6 +9058,19 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		for (i = 0; i < mask_len; i++)
 			pextra += sprintf(pextra, "0x%02X\n", mask_buf[i]);
 
+	} else if (strcmp(tmp[0], "btmask") == 0) {
+		*extra = 0;
+		mask_len = sizeof(u8) * rtw_get_bt_efuse_mask_arraylen(padapter);
+		rtw_bt_efuse_mask_array(padapter, mask_buf);
+
+		if (padapter->registrypriv.bBTFileMaskEfuse == _TRUE)
+			_rtw_memcpy(mask_buf, btmaskfileBuffer, mask_len);
+
+		sprintf(extra, "\n");
+		pextra = extra + strlen(extra);
+		for (i = 0; i < mask_len; i++)
+			pextra += sprintf(pextra, "0x%02X\n", mask_buf[i]);
+
 	} else
 		sprintf(extra, "Command not found!");
 
@@ -9548,6 +9582,15 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 			err = -EFAULT;
 		}
 	} else if (strcmp(tmp[0], "btfk2map") == 0) {
+
+		if (padapter->registrypriv.bBTFileMaskEfuse != _TRUE && pmp_priv->bloadBTefusemap == _TRUE) {
+			RTW_INFO("%s: File BT eFuse mask file not to be loaded\n", __FUNCTION__);
+			sprintf(extra, "Not load BT eFuse mask file yet, Please advance to use [ efuse_bt_mask ], now remove the Adapter.!!!!\n");
+			rtw_set_surprise_removed(padapter);
+			err = 0;
+			goto exit;
+		}
+	
 		rtw_write8(padapter, 0xa3, 0x05);
 		BTStatus = rtw_read8(padapter, 0xa0);
 		RTW_INFO("%s: btwmap before read 0xa0 BT Status =0x%x\n", __FUNCTION__, BTStatus);
@@ -9661,7 +9704,7 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 			for (i = 0; i < cnts; i++) {
 				if (padapter->registrypriv.boffefusemask == 0) {
 					if (padapter->registrypriv.bFileMaskEfuse == _TRUE) {
-						if (rtw_file_efuse_IsMasked(padapter, addr + i) == _TRUE)	/*use file efuse mask. */
+						if (rtw_file_efuse_IsMasked(padapter, addr + i, maskfileBuffer) == _TRUE)	/*use file efuse mask. */
 							bcmpchk = _FALSE;
 					} else {
 						if (efuse_IsMasked(padapter, addr + i) == _TRUE)
@@ -10106,6 +10149,10 @@ static int rtw_priv_mp_get(struct net_device *dev,
 	case MP_MON:
 		RTW_INFO("mp_get MP_MON\n");
 		status = rtw_mp_mon(dev, info, wdata, extra);
+		break;
+	case EFUSE_BT_MASK:
+		RTW_INFO("mp_get EFUSE_BT_MASK\n");
+		status = rtw_bt_efuse_mask_file(dev, info, wdata, extra);
 		break;
 	case EFUSE_MASK:
 		RTW_INFO("mp_get EFUSE_MASK\n");
@@ -12129,6 +12176,8 @@ static const struct iw_priv_args rtw_private_args[] = {
 		SIOCIWFIRSTPRIV + 0x17,
 		IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | 1024 , "rrm"
 	},
+#else
+	{SIOCIWFIRSTPRIV + 0x17, IW_PRIV_TYPE_CHAR | 1024 , 0 , "NULL"},
 #endif
 	{SIOCIWFIRSTPRIV + 0x18, IW_PRIV_TYPE_CHAR | IFNAMSIZ , 0 , "rereg_nd_name"},
 #ifdef CONFIG_MP_INCLUDED
@@ -12204,6 +12253,7 @@ static const struct iw_priv_args rtw_mp_private_args[] = {
 	{ MP_GET_TXPOWER_INX, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_get_txpower" },
 	{ MP_GETVER, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_priv_ver" },
 	{ MP_MON, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_mon" },
+	{ EFUSE_BT_MASK, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "efuse_bt_mask" },
 	{ EFUSE_MASK, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "efuse_mask" },
 	{ EFUSE_FILE, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "efuse_file" },
 	{ MP_TX, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_tx" },

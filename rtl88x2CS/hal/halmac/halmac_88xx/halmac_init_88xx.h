@@ -57,6 +57,9 @@ rqpn_parser_88xx(struct halmac_adapter *adapter, enum halmac_trx_mode mode,
 void
 init_ofld_feature_state_machine_88xx(struct halmac_adapter *adapter);
 
+enum halmac_ret_status
+fwff_is_empty_88xx(struct halmac_adapter *adapter);
+
 #endif /* HALMAC_88XX_SUPPORT */
 
 #endif/* _HALMAC_INIT_88XX_H_ */

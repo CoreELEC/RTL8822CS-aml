@@ -680,6 +680,22 @@ Default: 00b.
 #define USB_INTR_CONTENT_HISRE_OFFSET		52
 #define USB_INTR_CONTENT_LENGTH				56
 
+/* WOL bit information */
+#define HAL92C_WOL_PTK_UPDATE_EVENT		BIT(0)
+#define HAL92C_WOL_GTK_UPDATE_EVENT		BIT(1)
+#define HAL92C_WOL_DISASSOC_EVENT		BIT(2)
+#define HAL92C_WOL_DEAUTH_EVENT			BIT(3)
+#define HAL92C_WOL_FW_DISCONNECT_EVENT	BIT(4)
+
+
+/*----------------------------------------------------------------------------
+**      REG_CCK_CHECK						(offset 0x454)
+------------------------------------------------------------------------------*/
+#define BIT_BCN_PORT_SEL		BIT(5)
+#define BIT_EN_BCN_PKT_REL		BIT(6)
+
+#endif /* RTW_HALMAC */
+
 /* ----------------------------------------------------------------------------
 * Response Rate Set Register	(offset 0x440, 24bits)
 * ---------------------------------------------------------------------------- */
@@ -707,21 +723,6 @@ Default: 00b.
 #define RRSR_CCK_RATES (RRSR_11M | RRSR_5_5M | RRSR_2M | RRSR_1M)
 #define RRSR_OFDM_RATES (RRSR_54M | RRSR_48M | RRSR_36M | RRSR_24M | RRSR_18M | RRSR_12M | RRSR_9M | RRSR_6M)
 
-/* WOL bit information */
-#define HAL92C_WOL_PTK_UPDATE_EVENT		BIT(0)
-#define HAL92C_WOL_GTK_UPDATE_EVENT		BIT(1)
-#define HAL92C_WOL_DISASSOC_EVENT		BIT(2)
-#define HAL92C_WOL_DEAUTH_EVENT			BIT(3)
-#define HAL92C_WOL_FW_DISCONNECT_EVENT	BIT(4)
-
-
-/*----------------------------------------------------------------------------
-**      REG_CCK_CHECK						(offset 0x454)
-------------------------------------------------------------------------------*/
-#define BIT_BCN_PORT_SEL		BIT(5)
-#define BIT_EN_BCN_PKT_REL		BIT(6)
-
-#endif /* RTW_HALMAC */
 
 /* ----------------------------------------------------------------------------
  * Rate Definition

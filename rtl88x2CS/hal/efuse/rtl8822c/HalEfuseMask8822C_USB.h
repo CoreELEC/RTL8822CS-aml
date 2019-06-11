@@ -25,3 +25,10 @@ u16 EFUSE_GetArrayLen_MP_8822C_MUSB(void);
 void EFUSE_GetMaskArray_MP_8822C_MUSB(u8 *Array);
 
 BOOLEAN EFUSE_IsAddressMasked_MP_8822C_MUSB(u16 Offset);
+
+u16 EFUSE_GetBTArrayLen_MP_8822C_MUSB(void);
+
+void EFUSE_GetBTMaskArray_MP_8822C_MUSB(u8 *Array);
+
+BOOLEAN EFUSE_IsBTAddressMasked_MP_8822C_MUSB(u16 Offset);
+

@@ -867,4 +867,23 @@ rqpn_parser_88xx(struct halmac_adapter *adapter, enum halmac_trx_mode mode,
 	return HALMAC_RET_SUCCESS;
 }
 
+enum halmac_ret_status
+fwff_is_empty_88xx(struct halmac_adapter *adapter)
+{
+	struct halmac_api *api = (struct halmac_api *)adapter->halmac_api;
+	u32 cnt;
+
+	cnt = 5000;
+	while (HALMAC_REG_R16(REG_FWFF_CTRL) !=
+		HALMAC_REG_R16(REG_FWFF_PKT_INFO)) {
+		if (cnt == 0) {
+			PLTFM_MSG_ERR("[ERR]polling fwff empty fail\n");
+			return HALMAC_RET_FWFF_NO_EMPTY;
+		}
+		cnt--;
+		PLTFM_DELAY_US(50);
+	}
+	return HALMAC_RET_SUCCESS;
+}
+
 #endif /* HALMAC_88XX_SUPPORT */

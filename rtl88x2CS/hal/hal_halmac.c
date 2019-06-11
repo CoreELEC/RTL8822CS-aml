@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2015 - 2018 Realtek Corporation.
+ * Copyright(c) 2015 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -2985,6 +2985,7 @@ static int _cfg_drv_rsvd_pg_num(struct dvobj_priv *d)
 	enum halmac_drv_rsvd_pg_num rsvd_page_number;
 	enum halmac_ret_status status;
 	u16 drv_rsvd_num;
+	int ret = 0;
 
 
 	a = dvobj_get_primary_adapter(d);
@@ -2995,15 +2996,21 @@ static int _cfg_drv_rsvd_pg_num(struct dvobj_priv *d)
 	drv_rsvd_num = rtw_hal_get_rsvd_page_num(a);
 	rsvd_page_number = _rsvd_page_num_drv2halmac(drv_rsvd_num);
 	status = api->halmac_cfg_drv_rsvd_pg_num(halmac, rsvd_page_number);
-	if (status != HALMAC_RET_SUCCESS)
-		return -1;
+	if (status != HALMAC_RET_SUCCESS) {
+		ret = -1;
+		goto exit;
+	}
 	hal->drv_rsvd_page_number = _rsvd_page_num_halmac2drv(rsvd_page_number);
 
-	if (drv_rsvd_num != hal->drv_rsvd_page_number)
-		RTW_INFO("%s: request %d pages, but allocate %d pages\n",
-			 __FUNCTION__, drv_rsvd_num, hal->drv_rsvd_page_number);
+exit:
+#ifndef DBG_RSVD_PAGE_CFG
+	if (drv_rsvd_num != _rsvd_page_num_halmac2drv(rsvd_page_number))
+#endif
+		RTW_INFO("%s: request %d pages => halmac %d pages %s\n"
+			, __FUNCTION__, drv_rsvd_num, _rsvd_page_num_halmac2drv(rsvd_page_number)
+			, ret ? "fail" : "success");
 
-	return 0;
+	return ret;
 }
 
 static void _debug_dlfw_fail(struct dvobj_priv *d)
@@ -5517,9 +5524,32 @@ int rtw_halmac_bf_del_sounding(struct dvobj_priv *d,
 	return 0;
 }
 
+/**
+ * rtw_halmac_bf_cfg_csi_rate() - Config data rate for CSI report by CSSI
+ * @d:		struct dvobj_priv*
+ * @rssi:	RSSI vlaue, unit is percentage (0~100).
+ * @current_rate:	Current CSI frame rate
+ *			Valid value example
+ *			0	CCK 1M
+ *			3	CCK 11M
+ *			4	OFDM 6M
+ *			and so on
+ * @fixrate_en:	Enable to fix CSI frame in VHT rate, otherwise legacy OFDM rate.
+ *		The value "0" for disable, otheriwse enable.
+ * @new_rate:	Return new data rate, and value range is the same as current_rate
+ * @bmp_ofdm54: Return to suggest enabling OFDM 54M for CSI report frame or not,
+ *		The valid values and meanings are:
+ *		0x00	disable
+ *		0x01	enable
+ *		0xFF	Keep current setting
+ *
+ * According RSSI to config data rate for CSI report frame of Beamforming.
+ *
+ * Rteurn 0 for OK, otherwise fail.
+ */
 int rtw_halmac_bf_cfg_csi_rate(struct dvobj_priv *d,
 		u8 rssi, u8 current_rate, u8 fixrate_en,
-		u8 *new_rate)
+		u8 *new_rate, u8 *bmp_ofdm54)
 {
 	struct halmac_adapter *mac;
 	struct halmac_api *api;
@@ -5530,7 +5560,7 @@ int rtw_halmac_bf_cfg_csi_rate(struct dvobj_priv *d,
 	api = HALMAC_GET_API(mac);
 
 	status = api->halmac_cfg_csi_rate(mac,
-			rssi, current_rate, fixrate_en, new_rate);
+			rssi, current_rate, fixrate_en, new_rate, bmp_ofdm54);
 	if (status != HALMAC_RET_SUCCESS)
 		return -1;
 

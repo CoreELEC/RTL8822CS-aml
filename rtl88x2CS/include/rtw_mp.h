@@ -271,6 +271,7 @@ enum {
 	MP_PwrCtlDM,
 	MP_GETVER,
 	MP_MON,
+	EFUSE_BT_MASK,
 	EFUSE_MASK,
 	EFUSE_FILE,
 	MP_TX,
@@ -876,6 +877,9 @@ int rtw_mp_dpk(struct net_device *dev,
 			struct iw_request_info *info,
 			union iwreq_data *wrqu, char *extra);
 int rtw_efuse_mask_file(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
+int rtw_bt_efuse_mask_file(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
 int rtw_efuse_file_map(struct net_device *dev,

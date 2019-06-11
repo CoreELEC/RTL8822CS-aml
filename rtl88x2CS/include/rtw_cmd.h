@@ -269,6 +269,7 @@ enum LPS_CTRL_TYPE {
 	LPS_CTRL_RX_TRAFFIC_LEAVE = 8,
 	LPS_CTRL_ENTER = 9,
 	LPS_CTRL_LEAVE_CFG80211_PWRMGMT = 10,
+	LPS_CTRL_LEAVE_SET_OPTION = 11,
 };
 
 enum STAKEY_TYPE {
@@ -1045,7 +1046,11 @@ extern u8 rtw_reset_securitypriv_cmd(_adapter *padapter);
 extern u8 rtw_free_assoc_resources_cmd(_adapter *padapter, u8 lock_scanned_queue, int flags);
 extern u8 rtw_dynamic_chk_wk_cmd(_adapter *adapter);
 
-u8 rtw_lps_ctrl_wk_cmd(_adapter *padapter, u8 lps_ctrl_type, u8 enqueue);
+u8 rtw_lps_ctrl_wk_cmd(_adapter *padapter, u8 lps_ctrl_type, u8 flags);
+u8 rtw_lps_ctrl_leave_set_level_cmd(_adapter *adapter, u8 lps_level, u8 flags);
+#ifdef CONFIG_LPS_1T1R
+u8 rtw_lps_ctrl_leave_set_1t1r_cmd(_adapter *adapter, u8 lps_1t1r, u8 flags);
+#endif
 u8 rtw_dm_in_lps_wk_cmd(_adapter *padapter);
 u8 rtw_lps_change_dtim_cmd(_adapter *padapter, u8 dtim);
 

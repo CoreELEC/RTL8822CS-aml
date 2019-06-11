@@ -54,6 +54,11 @@ struct tx_path_en_8822c {
 	boolean is_path_ctrl_by_bb_reg;
 };
 
+struct rx_path_en_8822c {
+	u8 rx_path_en_ofdm;
+	u8 rx_path_en_cck;
+};
+
 u32 config_phydm_read_rf_reg_8822c(struct dm_struct *dm, enum rf_path path,
 				   u32 reg_addr, u32 bit_mask);
 
@@ -84,7 +89,10 @@ u8 config_phydm_read_txagc_8822c(struct dm_struct *dm, enum rf_path path,
 void phydm_get_tx_path_en_setting_8822c(struct dm_struct *dm,
 					struct tx_path_en_8822c *path);
 
-void phydm_config_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
+void phydm_get_rx_path_en_setting_8822c(struct dm_struct *dm,
+					struct rx_path_en_8822c *path);
+
+void phydm_config_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path_2ss,
 				enum bb_path tx_path_sel_1ss,
 				enum bb_path tx_path_sel_cck);
 
@@ -110,6 +118,8 @@ void phydm_i_only_setting_8822c(struct dm_struct *dm, boolean en_i_only,
 void phydm_1rcca_setting_8822c(struct dm_struct *dm, boolean en_1rcca);
 
 void phydm_ch_smooth_setting_8822c(struct dm_struct *dm, boolean en_ch_smooth);
+
+u16 phydm_get_dis_dpd_by_rate_8822c(struct dm_struct *dm);
 
 boolean config_phydm_parameter_init_8822c(struct dm_struct *dm,
 					  enum odm_parameter_init type);

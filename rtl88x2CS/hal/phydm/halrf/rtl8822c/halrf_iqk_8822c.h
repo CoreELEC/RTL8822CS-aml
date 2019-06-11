@@ -39,6 +39,8 @@
 #define TXIQK 0
 #define RXIQK 1
 #define SS_8822C 2
+
+#define IQK_INFO_RSVD_LEN_8822C	568
 /*---------------------------End Define Parameters-------------------------------*/
 #if !(DM_ODM_SUPPORT_TYPE & ODM_AP)
 void do_iqk_8822c(
@@ -69,6 +71,8 @@ void iqk_get_cfir_8822c(void *dm_void, u8 idx, u8 path, boolean debug);
 
 void iqk_set_cfir_8822c(void *dm_void, u8 idx, u8 path, boolean debug);
 
+void iqk_reload_iqk_8822c(void *dm_void, boolean reset);
+
 void phy_get_iqk_cfir_8822c(void *dm_void, u8 idx, u8 path, boolean debug);
 
 void phy_iqk_dbg_cfir_backup_8822c(void *dm_void);
@@ -80,6 +84,8 @@ void phy_iqk_dbg_cfir_reload_8822c(void *dm_void);
 void phy_iqk_dbg_cfir_write_8822c(void *dm_void, u8 type, u32 path, u32 idx, u32 i, u32 data);
 
 void phy_iqk_dbg_cfir_backup_show_8822b(void *dm_void);
+
+void iqk_info_rsvd_page_8822c(void *dm_void, u8 *buf, u32 *buf_size);
 
 
 #else /* (RTL8822C_SUPPORT == 0)*/

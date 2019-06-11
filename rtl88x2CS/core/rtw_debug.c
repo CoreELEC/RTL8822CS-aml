@@ -183,6 +183,9 @@ void dump_drv_cfg(void *sel)
 #ifdef RTW_XMIT_THREAD_HIGH_PRIORITY_AGG
 	RTW_PRINT_SEL(sel, "RTW_XMIT_THREAD_HIGH_PRIORITY_AGG\n");
 #endif
+#ifdef CONFIG_RTW_DISABLE_HW_PDN
+	RTW_PRINT_SEL(sel, "CONFIG_RTW_DISABLE_HW_PDN\n");
+#endif
 #endif /*CONFIG_SDIO_HCI*/
 
 #ifdef CONFIG_PCI_HCI
@@ -204,6 +207,9 @@ void dump_drv_cfg(void *sel)
 #endif
 #ifdef CONFIG_PCI_TX_POLLING
 	RTW_PRINT_SEL(sel, "CONFIG_PCI_TX_POLLING\n");
+#endif
+#ifdef CONFIG_PCI_TX_POLLING_V2
+	RTW_PRINT_SEL(sel, "CONFIG_PCI_TX_POLLING_V2\n");
 #endif
 
 	RTW_PRINT_SEL(sel, "\n=== XMIT-INFO ===\n");
@@ -750,6 +756,82 @@ void dump_sec_cam_cache(void *sel, _adapter *adapter)
 	}
 
 }
+
+static u8 fwdl_test_chksum_fail = 0;
+static u8 fwdl_test_wintint_rdy_fail = 0;
+
+bool rtw_fwdl_test_trigger_chksum_fail(void)
+{
+	if (fwdl_test_chksum_fail) {
+		RTW_PRINT("fwdl test case: trigger chksum_fail\n");
+		fwdl_test_chksum_fail--;
+		return _TRUE;
+	}
+	return _FALSE;
+}
+
+bool rtw_fwdl_test_trigger_wintint_rdy_fail(void)
+{
+	if (fwdl_test_wintint_rdy_fail) {
+		RTW_PRINT("fwdl test case: trigger wintint_rdy_fail\n");
+		fwdl_test_wintint_rdy_fail--;
+		return _TRUE;
+	}
+	return _FALSE;
+}
+
+static u8 del_rx_ampdu_test_no_tx_fail = 0;
+
+bool rtw_del_rx_ampdu_test_trigger_no_tx_fail(void)
+{
+	if (del_rx_ampdu_test_no_tx_fail) {
+		RTW_PRINT("del_rx_ampdu test case: trigger no_tx_fail\n");
+		del_rx_ampdu_test_no_tx_fail--;
+		return _TRUE;
+	}
+	return _FALSE;
+}
+
+static u32 g_wait_hiq_empty_ms = 0;
+
+u32 rtw_get_wait_hiq_empty_ms(void)
+{
+	return g_wait_hiq_empty_ms;
+}
+
+static systime sta_linking_test_start_time = 0;
+static u32 sta_linking_test_wait_ms = 0;
+static u8 sta_linking_test_force_fail = 0;
+
+void rtw_sta_linking_test_set_start(void)
+{
+	sta_linking_test_start_time = rtw_get_current_time();
+}
+
+bool rtw_sta_linking_test_wait_done(void)
+{
+	return rtw_get_passing_time_ms(sta_linking_test_start_time) >= sta_linking_test_wait_ms;
+}
+
+bool rtw_sta_linking_test_force_fail(void)
+{
+	return sta_linking_test_force_fail;
+}
+
+#ifdef CONFIG_AP_MODE
+static u16 ap_linking_test_force_auth_fail = 0;
+static u16 ap_linking_test_force_asoc_fail = 0;
+
+u16 rtw_ap_linking_test_force_auth_fail(void)
+{
+	return ap_linking_test_force_auth_fail;
+}
+
+u16 rtw_ap_linking_test_force_asoc_fail(void)
+{
+	return ap_linking_test_force_asoc_fail;
+}
+#endif
 
 #ifdef CONFIG_PROC_DEBUG
 ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
@@ -2068,29 +2150,6 @@ ssize_t proc_set_rx_cnt_dump(struct file *file, const char __user *buffer, size_
 }
 #endif
 
-static u8 fwdl_test_chksum_fail = 0;
-static u8 fwdl_test_wintint_rdy_fail = 0;
-
-bool rtw_fwdl_test_trigger_chksum_fail(void)
-{
-	if (fwdl_test_chksum_fail) {
-		RTW_PRINT("fwdl test case: trigger chksum_fail\n");
-		fwdl_test_chksum_fail--;
-		return _TRUE;
-	}
-	return _FALSE;
-}
-
-bool rtw_fwdl_test_trigger_wintint_rdy_fail(void)
-{
-	if (fwdl_test_wintint_rdy_fail) {
-		RTW_PRINT("fwdl test case: trigger wintint_rdy_fail\n");
-		fwdl_test_wintint_rdy_fail--;
-		return _TRUE;
-	}
-	return _FALSE;
-}
-
 ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
 {
 	char tmp[32];
@@ -2107,18 +2166,6 @@ ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, si
 		sscanf(tmp, "%hhu %hhu", &fwdl_test_chksum_fail, &fwdl_test_wintint_rdy_fail);
 
 	return count;
-}
-
-static u8 del_rx_ampdu_test_no_tx_fail = 0;
-
-bool rtw_del_rx_ampdu_test_trigger_no_tx_fail(void)
-{
-	if (del_rx_ampdu_test_no_tx_fail) {
-		RTW_PRINT("del_rx_ampdu test case: trigger no_tx_fail\n");
-		del_rx_ampdu_test_no_tx_fail--;
-		return _TRUE;
-	}
-	return _FALSE;
 }
 
 ssize_t proc_set_del_rx_ampdu_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
@@ -2139,13 +2186,6 @@ ssize_t proc_set_del_rx_ampdu_test_case(struct file *file, const char __user *bu
 	return count;
 }
 
-static u32 g_wait_hiq_empty_ms = 0;
-
-u32 rtw_get_wait_hiq_empty_ms(void)
-{
-	return g_wait_hiq_empty_ms;
-}
-
 ssize_t proc_set_wait_hiq_empty(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
 {
 	char tmp[32];
@@ -2162,25 +2202,6 @@ ssize_t proc_set_wait_hiq_empty(struct file *file, const char __user *buffer, si
 		sscanf(tmp, "%u", &g_wait_hiq_empty_ms);
 
 	return count;
-}
-
-static systime sta_linking_test_start_time = 0;
-static u32 sta_linking_test_wait_ms = 0;
-static u8 sta_linking_test_force_fail = 0;
-
-void rtw_sta_linking_test_set_start(void)
-{
-	sta_linking_test_start_time = rtw_get_current_time();
-}
-
-bool rtw_sta_linking_test_wait_done(void)
-{
-	return rtw_get_passing_time_ms(sta_linking_test_start_time) >= sta_linking_test_wait_ms;
-}
-
-bool rtw_sta_linking_test_force_fail(void)
-{
-	return sta_linking_test_force_fail;
 }
 
 ssize_t proc_set_sta_linking_test(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
@@ -2210,19 +2231,6 @@ ssize_t proc_set_sta_linking_test(struct file *file, const char __user *buffer, 
 }
 
 #ifdef CONFIG_AP_MODE
-static u16 ap_linking_test_force_auth_fail = 0;
-static u16 ap_linking_test_force_asoc_fail = 0;
-
-u16 rtw_ap_linking_test_force_auth_fail(void)
-{
-	return ap_linking_test_force_auth_fail;
-}
-
-u16 rtw_ap_linking_test_force_asoc_fail(void)
-{
-	return ap_linking_test_force_asoc_fail;
-}
-
 ssize_t proc_set_ap_linking_test(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
 {
 	char tmp[32];
@@ -3984,7 +3992,7 @@ int proc_get_btcoex_info(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	PADAPTER padapter;
-	const u32 bufsize = 30 * 100;
+	const u32 bufsize = 40 * 100;
 	u8 *pbuf = NULL;
 
 	padapter = (PADAPTER)rtw_netdev_priv(dev);
@@ -4873,6 +4881,16 @@ int proc_get_ps_info(struct seq_file *m, void *v)
 	u8 ips_mode = pwrpriv->ips_mode_req;
 	u8 lps_mode = pwrpriv->power_mgnt;
 	u8 lps_level = pwrpriv->lps_level;
+#ifdef CONFIG_LPS_1T1R
+	u8 lps_1t1r = pwrpriv->lps_1t1r;
+#endif
+#ifdef CONFIG_WOWLAN
+	u8 wow_lps_mode = pwrpriv->wowlan_power_mgmt;
+	u8 wow_lps_level = pwrpriv->wowlan_lps_level;
+	#ifdef CONFIG_LPS_1T1R
+	u8 wow_lps_1t1r = pwrpriv->wowlan_lps_1t1r;
+	#endif
+#endif /* CONFIG_WOWLAN */
 	char *str = "";
 
 	RTW_PRINT_SEL(m, "======Power Saving Info:======\n");
@@ -4923,6 +4941,40 @@ int proc_get_ps_info(struct seq_file *m, void *v)
 		str = "LPS_NORMAL";
 	RTW_PRINT_SEL(m, " LPS level: %s\n", str);
 
+#ifdef CONFIG_LPS_1T1R
+	RTW_PRINT_SEL(m, " LPS 1T1R: %d\n", lps_1t1r);
+#endif
+
+#ifdef CONFIG_WOWLAN
+	RTW_PRINT_SEL(m, "------------------------------\n");
+	RTW_PRINT_SEL(m, "*WOW LPS:\n");
+
+	if (wow_lps_mode == PS_MODE_ACTIVE)
+		str = "NO LPS";
+	else if (wow_lps_mode == PS_MODE_MIN)
+		str = "MIN";
+	else if (wow_lps_mode == PS_MODE_MAX)
+		str = "MAX";
+	else if (wow_lps_mode == PS_MODE_DTIM)
+		str = "DTIM";
+	else
+		sprintf(str, "%d", wow_lps_mode);
+
+	RTW_PRINT_SEL(m, " WOW LPS mode: %s\n", str);
+
+	if (wow_lps_level == LPS_LCLK)
+		str = "LPS_LCLK";
+	else if  (wow_lps_level == LPS_PG)
+		str = "LPS_PG";
+	else
+		str = "LPS_NORMAL";
+	RTW_PRINT_SEL(m, " WOW LPS level: %s\n", str);
+
+	#ifdef CONFIG_LPS_1T1R
+	RTW_PRINT_SEL(m, " WOW LPS 1T1R: %d\n", wow_lps_1t1r);
+	#endif
+#endif /* CONFIG_WOWLAN */
+
 	RTW_PRINT_SEL(m, "=============================\n");
 	return 0;
 }
@@ -4959,6 +5011,12 @@ ssize_t proc_set_ps_info(struct file *file, const char __user *buffer, size_t co
 		
 		rtw_pm_set_ips(adapter, adapter->registrypriv.ips_mode);
 
+#ifdef CONFIG_WOWLAN
+		RTW_INFO("%s: back to original WOW LPS Mode\n", __FUNCTION__);
+
+		rtw_pm_set_wow_lps(adapter, adapter->registrypriv.wow_power_mgnt);
+#endif /* CONFIG_WOWLAN */
+
 		goto exit;
 	}
 	
@@ -4973,7 +5031,16 @@ ssize_t proc_set_ps_info(struct file *file, const char __user *buffer, size_t co
 		RTW_INFO("%s: IPS: %s, en=%d\n", __FUNCTION__, (en == 0) ? "disable":"enable", en);	
 		if (rtw_pm_set_ips(adapter, en) != 0 )
 			RTW_ERR("%s: invalid parameter, mode=%d, level=%d\n", __FUNCTION__, mode, en);
-	} else
+	}
+#ifdef CONFIG_WOWLAN
+	else if (mode == 3) {
+		/* WOW LPS */
+		RTW_INFO("%s: WOW LPS: %s, en=%d\n", __FUNCTION__, (en == 0) ? "disable":"enable", en);
+		if (rtw_pm_set_wow_lps(adapter, en) != 0 )
+			RTW_ERR("%s: invalid parameter, mode=%d, level=%d\n", __FUNCTION__, mode, en);
+	}
+#endif /* CONFIG_WOWLAN */
+	else
 		RTW_ERR("%s: invalid parameter, mode = %d!\n", __FUNCTION__, mode);
 
 exit:
@@ -6557,7 +6624,7 @@ ssize_t proc_set_fw_offload(struct file *file, const char __user *buffer, size_t
 
 		if (hal->RegIQKFWOffload != iqk_offload_enable) {
 			hal->RegIQKFWOffload = iqk_offload_enable;
-			rtw_hal_update_iqk_fw_offload_cap(pri_adapter);
+			rtw_run_in_thread_cmd(pri_adapter, ((void *)(rtw_hal_update_iqk_fw_offload_cap)), pri_adapter);
 		}
 
 		if (hal->ch_switch_offload != ch_switch_offload_enable)

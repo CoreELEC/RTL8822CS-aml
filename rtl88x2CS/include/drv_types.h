@@ -193,7 +193,17 @@ struct registry_priv {
 	u8	power_mgnt;
 	u8	ips_mode;
 	u8	lps_level;
+#ifdef CONFIG_LPS_1T1R
+	u8	lps_1t1r;
+#endif
 	u8	lps_chk_by_tp;
+#ifdef CONFIG_WOWLAN
+	u8	wow_power_mgnt;
+	u8	wow_lps_level;
+	#ifdef CONFIG_LPS_1T1R
+	u8	wow_lps_1t1r;
+	#endif
+#endif /* CONFIG_WOWLAN */
 	u8	smart_ps;
 #ifdef CONFIG_WMMPS_STA
 	u8	wmm_smart_ps;
@@ -377,6 +387,7 @@ struct registry_priv {
 
 	u8 boffefusemask;
 	BOOLEAN bFileMaskEfuse;
+	BOOLEAN bBTFileMaskEfuse;
 #ifdef CONFIG_RTW_ACS
 	u8 acs_auto_scan;
 	u8 acs_mode;
@@ -466,6 +477,9 @@ struct registry_priv {
 	u8 tdmadig_mode;
 	u8 tdmadig_dynamic;
 #endif/*CONFIG_TDMADIG*/
+#ifdef CONFIG_RTW_MESH
+	u8 peer_alive_based_preq;
+#endif
 };
 
 /* For registry parameters */

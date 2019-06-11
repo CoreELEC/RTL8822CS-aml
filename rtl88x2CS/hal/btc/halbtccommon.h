@@ -15,7 +15,6 @@
 
 #if (BT_SUPPORT == 1 && COEX_SUPPORT == 1)
 
-
 /* *******************************************
  * The following is interface which will notify coex module.
  * ********************************************/

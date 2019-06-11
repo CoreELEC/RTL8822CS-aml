@@ -357,6 +357,9 @@ typedef struct hal_com_data {
 	u8	bBTFWReady;
 	u8	fw_ractrl;
 	u8	LastHMEBoxNum;	/* H2C - for host message to fw */
+#ifdef CONFIG_LPS_1T1R
+	u8 lps_1t1r;
+#endif
 
 	/****** current WIFI_PHY values ******/
 	WIRELESS_MODE	CurrentWirelessMode;
@@ -530,7 +533,10 @@ typedef struct hal_com_data {
 	/* RDG enable */
 	BOOLEAN	 bRDGEnable;
 
-	u16 RegRRSR;
+	#if defined (CONFIG_RTL8812A) || defined(CONFIG_RTL8821A)
+	u32 RegRRSR;
+	#endif
+
 	/****** antenna diversity ******/
 	u8	AntDivCfg;
 	u8	with_extenal_ant_switch;

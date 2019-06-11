@@ -38,7 +38,7 @@
 
 /*---------------------------Define Local Constant---------------------------*/
 
-/*8822C DPK ver:0x15 20190107*/
+/*8822C DPK ver:0x18 20190403*/
 
 static u32
 _btc_wait_indirect_reg_ready_8822c(
@@ -208,6 +208,8 @@ void _reload_mac_bb_registers_8822c(
 		       reg[i], reg_backup[i]);
 #endif
 	}
+	odm_set_bb_reg(dm, R_0x1b00, 0x0000000f, 0xc); /*subpage 2*/
+	odm_set_bb_reg(dm, R_0x1bd4, 0x000000f0, 0x4); /*force CLK off for power saving*/
 }
 
 void _reload_rf_registers_8822c(
@@ -741,9 +743,9 @@ u8 _dpk_thermal_read_8822c(
 	odm_set_rf_reg(dm, (enum rf_path)path, RF_0x42, BIT(19), 0x1);
 	odm_set_rf_reg(dm, (enum rf_path)path, RF_0x42, BIT(19), 0x0);
 	odm_set_rf_reg(dm, (enum rf_path)path, RF_0x42, BIT(19), 0x1);
-	ODM_delay_us(5);
+	ODM_delay_us(15);
 
-	return (u8)odm_get_rf_reg(dm, (enum rf_path)path, RF_0x42, 0x0FC00);
+	return (u8)odm_get_rf_reg(dm, (enum rf_path)path, RF_0x42, 0x0007e);
 }
 
 u32 _dpk_pas_read_8822c(
@@ -1145,9 +1147,9 @@ void _dpk_coef_write_8822c(
 
 		if (!result) {
 			if (addr == 3)
-				coef = 0x04000000;
+				coef = 0x04001fff;
 			else
-				coef = 0x00000000;
+				coef = 0x00001fff;
 		} else
 			coef = dpk_info->coef[path][addr];
 		odm_set_bb_reg(dm, tmp_reg, MASKDWORD, coef);
@@ -1589,73 +1591,10 @@ void _dpk_reload_data_8822c(
 	struct dm_dpk_info *dpk_info = &dm->dpk_info;
 
 	u8 path;
-#if 0
-	u8 addr;
-	u32 coef[2][20] = {
-		{
-		0x1f671f83,
-		0x00111fe5,
-		0x1f390020,
-		0x1e1e1e83,
-		0x00081fcb,
-		0x1f36001c,
-		0x1e9e1f13,
-		0x002e1ff6,
-		0x1f890021,
-		0x00d8008a,
-		0x00101ff7,
-		0x1ff2000a,
-		0x002c1fec,
-		0x1f300018,
-		0x0044000c,
-		0x1f760021,
-		0x0046001c,
-		0x1fea0012,
-		0x00030008,
-		0x00311ff9
-		},
 
-		{
-		0x1fae0021,
-		0x00001ff6,
-		0x1fe50065,
-		0x1df901bd,
-		0x1fcd1fef,
-		0x1fdc006b,
-		0x1eae0109,
-		0x1fe31fec,
-		0x1fec0059,
-		0x00ac1f63,
-		0x1fe60001,
-		0x1fff0022,
-		0x00071fdf,
-		0x1fe10072,
-		0x00121fe3,
-		0x1ff10069,
-		0x00291fea,
-		0x000c002e,
-		0x00321fd1,
-		0x00241fe0
-		}
-	};
-	u8 dpk_txagc[2] = {0xf, 0xf};
-	u16 dpk_gs[2] = {0x5e, 0x5f};
-	u8 thermal_dpk[4] = {30, 32, 0, 0};
-	u8 thermal_dpk_delta[2] = {1, 1};
+	if ((dpk_info->dpk_path_ok == 0) && (dpk_info->dpk_ch == 0))
+		return; /*never do DPK before*/
 
-	dpk_info->dpk_path_ok = 0x3;
-
-	for (path = 0; path < DPK_RF_PATH_NUM_8822C; path++) {
-
-		dpk_info->dpk_txagc[path] = dpk_txagc[path];
-		dpk_info->dpk_gs[path] = dpk_gs[path];
-		dpk_info->thermal_dpk[path] = thermal_dpk[path];
-		dpk_info->thermal_dpk_delta[path] = thermal_dpk_delta[path];
-
-		for (addr = 0; addr < 20; addr++)
-			dpk_info->coef[path][addr] = coef[path][addr];
-	}
-#endif
 	for (path = 0; path < DPK_RF_PATH_NUM_8822C; path++) {
 
 		odm_set_bb_reg(dm, R_0x1b00, 0x0000000f, 0x8 | (path << 1));
@@ -1718,8 +1657,11 @@ void do_dpk_8822c(
 		RF_0x19, RF_0x1a, RF_0x55, RF_0x63, RF_0x87,
 		RF_0x8f, RF_0xde};
 
-	if (dm->ext_pa) {
+	if (dm->ext_pa && (*dm->band_type == ODM_BAND_2_4G)) {
 		RF_DBG(dm, DBG_RF_DPK, "[DPK] Skip DPK due to ext_PA exist!!\n");
+		return;
+	} else if (dm->ext_pa_5g && (*dm->band_type == ODM_BAND_5G)) {
+		RF_DBG(dm, DBG_RF_DPK, "[DPK] Skip DPK due to 5G_ext_PA exist!!\n");
 		return;
 	} else if (!dpk_info->is_dpk_pwr_on) {
 		RF_DBG(dm, DBG_RF_DPK, "[DPK] Skip DPK due to DPD PWR off !!\n");
@@ -1818,8 +1760,12 @@ void dpk_track_8822c(
 		       "[DPK_track] =======================================\n");
 
 	/*get thermal meter*/
-	for (path = 0; path < DPK_RF_PATH_NUM_8822C; path++)
+	for (path = 0; path < DPK_RF_PATH_NUM_8822C; path++) {
 		thermal_value[path] = _dpk_thermal_read_8822c(dm, path);
+
+		RF_DBG(dm, DBG_RF_DPK | DBG_RF_TX_PWR_TRACK,
+		       "[DPK_track] S%d thermal now = %d\n", path, thermal_value[path]);
+	}
 
 	dpk_info->thermal_dpk_avg[0][dpk_info->thermal_dpk_avg_index] =
 		thermal_value[0];
@@ -1855,11 +1801,11 @@ void dpk_track_8822c(
 		thermal_value[1] = (u8)(thermal_dpk_avg[1] / thermal_dpk_avg_count);
 
 		RF_DBG(dm, DBG_RF_DPK | DBG_RF_TX_PWR_TRACK,
-		       "[DPK_track] S0 Thermal now = %d (DPK @ %d)\n",
+		       "[DPK_track] S0 thermal avg = %d (DPK @ %d)\n",
 		       thermal_value[0], dpk_info->thermal_dpk[0]);
 
 		RF_DBG(dm, DBG_RF_DPK | DBG_RF_TX_PWR_TRACK,
-		       "[DPK_track] S1 Thermal now = %d (DPK @ %d)\n",
+		       "[DPK_track] S1 thermal avg = %d (DPK @ %d)\n",
 		       thermal_value[1], dpk_info->thermal_dpk[1]);
 	}
 
@@ -1893,4 +1839,25 @@ void dpk_track_8822c(
 			       path, dpk_info->pre_pwsf[path]);
 	}
 }
+
+void dpk_info_rsvd_page_8822c(
+	void *dm_void,
+	u8 *buf,
+	u32 *buf_size)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct dm_dpk_info *dpk_info = &dm->dpk_info;
+
+	if (buf) {
+		odm_move_memory(dm, buf, &(dpk_info->dpk_path_ok), 2);
+		odm_move_memory(dm, buf + 2, dpk_info->dpk_txagc, 2);
+		odm_move_memory(dm, buf + 4, dpk_info->dpk_gs, 4);
+		odm_move_memory(dm, buf + 8, dpk_info->coef, 160);
+		odm_move_memory(dm, buf + 168, &(dpk_info->dpk_ch), 1);
+	}
+
+	if (buf_size)
+		*buf_size = DPK_INFO_RSVD_LEN_8822C;
+}
+
 #endif

@@ -486,6 +486,61 @@
 #endif
 #endif
 
+/* IPS */
+#ifndef RTW_IPS_MODE
+	#if defined(CONFIG_IPS)
+		#define RTW_IPS_MODE 1
+	#else
+		#define RTW_IPS_MODE 0
+	#endif
+#endif /* !RTW_IPS_MODE */
+
+#if (RTW_IPS_MODE > 1 || RTW_IPS_MODE < 0)
+	#error "The CONFIG_IPS_MODE value is wrong. Please follow HowTo_enable_the_power_saving_functionality.pdf.\n"
+#endif
+
+/* LPS */
+#ifndef RTW_LPS_MODE
+	#if defined(CONFIG_LPS_PG) || defined(CONFIG_LPS_PG_DDMA)
+		#define RTW_LPS_MODE 3
+	#elif defined(CONFIG_LPS_LCLK)
+		#define RTW_LPS_MODE 2
+	#elif defined(CONFIG_LPS)
+		#define RTW_LPS_MODE 1
+	#else
+		#define RTW_LPS_MODE 0
+	#endif 
+#endif /* !RTW_LPS_MODE */
+
+#if (RTW_LPS_MODE > 3 || RTW_LPS_MODE < 0)
+	#error "The CONFIG_LPS_MODE value is wrong. Please follow HowTo_enable_the_power_saving_functionality.pdf.\n"
+#endif
+
+#ifndef RTW_LPS_1T1R
+#define RTW_LPS_1T1R 0
+#endif
+
+#ifndef RTW_WOW_LPS_1T1R
+#define RTW_WOW_LPS_1T1R 0
+#endif
+
+/* WOW LPS */
+#ifndef RTW_WOW_LPS_MODE
+	#if defined(CONFIG_LPS_PG) || defined(CONFIG_LPS_PG_DDMA)
+		#define RTW_WOW_LPS_MODE 3
+	#elif defined(CONFIG_LPS_LCLK)
+		#define RTW_WOW_LPS_MODE 2
+	#elif defined(CONFIG_LPS)
+		#define RTW_WOW_LPS_MODE 1
+	#else
+		#define RTW_WOW_LPS_MODE 0
+	#endif
+#endif /* !RTW_WOW_LPS_MODE */
+
+#if (RTW_WOW_LPS_MODE > 3 || RTW_WOW_LPS_MODE < 0)
+	#error "The RTW_WOW_LPS_MODE value is wrong. Please follow HowTo_enable_the_power_saving_functionality.pdf.\n"
+#endif
+
 #ifdef RTW_REDUCE_SCAN_SWITCH_CH_TIME
 #ifndef CONFIG_RTL8822B
 	#error "Only 8822B support RTW_REDUCE_SCAN_SWITCH_CH_TIME"

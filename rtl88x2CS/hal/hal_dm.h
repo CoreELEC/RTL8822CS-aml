@@ -46,6 +46,9 @@ void rtw_dyn_soml_para_set(_adapter *adapter, u8 train_num, u8 intvl,
 			u8 period, u8 delay);
 void rtw_dyn_soml_config(_adapter *adapter);
 #endif
+#ifdef RTW_DYNAMIC_RRSR
+void rtw_phydm_set_rrsr(_adapter *adapter, u32 rrsr_value, bool write_rrsr);
+#endif
 void rtw_phydm_watchdog(_adapter *adapter, bool in_lps);
 
 void rtw_hal_update_iqk_fw_offload_cap(_adapter *adapter);
@@ -57,6 +60,7 @@ void rtw_hal_iqk_test(_adapter *adapter, bool recovery, bool clear, bool segment
 void rtw_hal_lck_test(_adapter *adapter);
 #endif
 
+s8 rtw_dm_get_min_rssi(_adapter *adapter);
 s8 rtw_phydm_get_min_rssi(_adapter *adapter);
 u8 rtw_phydm_get_cur_igi(_adapter *adapter);
 

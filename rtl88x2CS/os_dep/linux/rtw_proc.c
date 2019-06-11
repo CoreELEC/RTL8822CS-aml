@@ -702,6 +702,19 @@ static ssize_t proc_set_backop_flags_mesh(struct file *file, const char __user *
 
 #endif /* CONFIG_SCAN_BACKOP */
 
+#if defined(CONFIG_LPS_PG) && defined(CONFIG_RTL8822C)
+static int proc_get_lps_pg_debug(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = rtw_netdev_priv(dev);
+	struct dm_struct *dm = adapter_to_phydm(adapter);
+
+	rtw_run_in_thread_cmd(adapter, ((void *)(odm_lps_pg_debug_8822c)), dm);
+
+	return 0;
+}
+#endif
+
 /* gpio setting */
 #ifdef CONFIG_GPIO_API
 static ssize_t proc_set_config_gpio(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
@@ -1097,48 +1110,6 @@ static ssize_t proc_set_turboedca_ctrl(struct file *file, const char __user *buf
 	return count;
 
 }
-#ifdef CONFIG_WOWLAN
-static int proc_get_wow_lps_ctrl(struct seq_file *m, void *v)
-{
-	struct net_device *dev = m->private;
-	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
-
-	if (pwrctl)
-		RTW_PRINT_SEL(m, "WOW lps :%s\n", (pwrctl->wowlan_dis_lps) ? "Disable" : "Enable");
-
-	return 0;
-}
-
-static ssize_t proc_set_wow_lps_ctrl(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
-{
-	struct net_device *dev = data;
-	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
-
-	char tmp[32] = {0};
-	int mode = 0, num = 0;
-
-	if (count < 1)
-		return -EFAULT;
-
-	if (count > sizeof(tmp))
-		return -EFAULT;
-
-	if (buffer && !copy_from_user(tmp, buffer, count)) {
-
-		num	= sscanf(tmp, "%d ", &mode);
-
-		if (num != 1) {
-			RTW_INFO("argument number is wrong\n");
-			return -EFAULT;
-		}
-		pwrctl->wowlan_dis_lps = mode;
-		RTW_INFO("WOW lps :%s\n", (pwrctl->wowlan_dis_lps) ? "Disable" : "Enable");
-	}
-	return count;
-}
-#endif
 
 static int proc_get_mac_qinfo(struct seq_file *m, void *v)
 {
@@ -3787,6 +3758,52 @@ static int proc_get_mesh_gate_state(struct seq_file *m, void *v)
 	return 0;
 }
 
+static int proc_get_peer_alive_based_preq(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	struct _ADAPTER *adapter= (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv  *rp = &adapter->registrypriv;
+
+	RTW_PRINT_SEL(m, "peer_alive_based_preq = %u\n",
+		      rp->peer_alive_based_preq);
+
+	return 0;
+}
+
+static ssize_t 
+proc_set_peer_alive_based_preq(struct file *file, const char __user *buffer,
+			       size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	struct _ADAPTER *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv  *rp = &adapter->registrypriv;
+	char tmp[8];
+	int num = 0;
+	u8 enable = 0;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (!buffer || copy_from_user(tmp, buffer, count))
+		goto exit;
+
+	num = sscanf(tmp, "%hhu", &enable);
+	if (num !=  1) {
+		RTW_ERR("%s: invalid parameter!\n", __FUNCTION__);
+		goto exit;
+	}
+
+	if (enable > 1) {
+		RTW_ERR("%s: invalid value!\n", __FUNCTION__);
+		goto exit;
+	}
+	rp->peer_alive_based_preq = enable;
+
+exit:
+	return count;
+}
 #endif /* CONFIG_RTW_MESH */
 
 static int proc_get_scan_deny(struct seq_file *m, void *v)
@@ -4112,6 +4129,10 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("tx_info_msg", proc_get_tx_info_msg, NULL),
 	RTW_PROC_HDL_SSEQ("rx_info_msg", proc_get_rx_info_msg, proc_set_rx_info_msg),
 
+#if defined(CONFIG_LPS_PG) && defined(CONFIG_RTL8822C)
+	RTW_PROC_HDL_SSEQ("lps_pg_debug", proc_get_lps_pg_debug, NULL),
+#endif
+
 #ifdef CONFIG_GPIO_API
 	RTW_PROC_HDL_SSEQ("gpio_info", proc_get_gpio, proc_set_gpio),
 	RTW_PROC_HDL_SSEQ("gpio_set_output_value", NULL, proc_set_gpio_output_value),
@@ -4151,7 +4172,6 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 #ifdef CONFIG_WOW_PATTERN_HW_CAM
 	RTW_PROC_HDL_SSEQ("wow_pattern_cam", proc_dump_pattern_cam, NULL),
 #endif
-	RTW_PROC_HDL_SSEQ("dis_wow_lps", proc_get_wow_lps_ctrl, proc_set_wow_lps_ctrl),
 #endif
 
 #ifdef CONFIG_GPIO_WAKEUP
@@ -4312,6 +4332,7 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("mesh_stats", proc_get_mesh_stats, NULL),
 	RTW_PROC_HDL_SSEQ("mesh_gate_timeout_factor", proc_get_mesh_gate_timeout, proc_set_mesh_gate_timeout),
 	RTW_PROC_HDL_SSEQ("mesh_gate_state", proc_get_mesh_gate_state, NULL),
+	RTW_PROC_HDL_SSEQ("mesh_peer_alive_based_preq", proc_get_peer_alive_based_preq, proc_set_peer_alive_based_preq),
 #endif
 #ifdef CONFIG_FW_HANDLE_TXBCN
 	RTW_PROC_HDL_SSEQ("fw_tbtt_rpt", proc_get_fw_tbtt_rpt, proc_set_fw_tbtt_rpt),

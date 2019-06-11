@@ -490,7 +490,7 @@ static void init_phydm_cominfo(PADAPTER adapter)
 	RTW_INFO("%s: fab_ver=%d cut_ver=%d\n", __FUNCTION__, fab_ver, cut_ver);
 	odm_cmn_info_init(p_dm_odm, ODM_CMNINFO_FAB_VER, fab_ver);
 	odm_cmn_info_init(p_dm_odm, ODM_CMNINFO_CUT_VER, cut_ver);
-
+	odm_cmn_info_init(p_dm_odm, ODM_CMNINFO_DIS_DPD, _TRUE);
 }
 
 void rtl8822c_phy_init_dm_priv(PADAPTER adapter)
@@ -539,6 +539,9 @@ void rtl8822c_phy_haldm_watchdog(PADAPTER adapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(adapter);
 	u8 lps_changed = _FALSE;
 	u8 in_lps = _FALSE;
+	PADAPTER current_lps_iface = NULL, iface = NULL;
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	u8 i = 0;
 
 
 	if (!rtw_is_hw_init_completed(adapter))
@@ -564,29 +567,23 @@ void rtl8822c_phy_haldm_watchdog(PADAPTER adapter)
 		check_rxfifo_full(adapter);
 	}
 
-#ifdef CONFIG_DISABLE_ODM
-	goto skip_dm;
-#endif
-
 #ifdef CONFIG_LPS
 	if (pwrpriv->bLeisurePs && bFwCurrentInPSMode && pwrpriv->pwr_mode != PS_MODE_ACTIVE
 #ifdef CONFIG_WMMPS_STA	
 		&& !rtw_is_wmmps_mode(adapter)
 #endif /* CONFIG_WMMPS_STA */
 	) {
+		for (i = 0; i < dvobj->iface_nums; i++) {
+			iface = dvobj->padapters[i];
+			if (pwrpriv->current_lps_hw_port_id == rtw_hal_get_port(iface))
+				current_lps_iface = iface;
+		}
+
 		lps_changed = _TRUE;
 		in_lps = _TRUE;
-		LPS_Leave(adapter, "LPS_CTRL_PHYDM");
+		LPS_Leave(current_lps_iface, "LPS_CTRL_PHYDM");
 	}
 #endif
-
-	rtw_phydm_watchdog(adapter, in_lps);
-
-#ifdef CONFIG_LPS
-	if (lps_changed)
-		LPS_Enter(adapter, "LPS_CTRL_PHYDM");
-#endif
-
 
 #ifdef CONFIG_BEAMFORMING
 #ifdef RTW_BEAMFORMING_VERSION_2
@@ -596,7 +593,18 @@ void rtl8822c_phy_haldm_watchdog(PADAPTER adapter)
 #endif
 #endif
 
+#ifdef CONFIG_DISABLE_ODM
+	goto skip_dm;
+#endif
+
+	rtw_phydm_watchdog(adapter, in_lps);
+
 skip_dm:
+
+#ifdef CONFIG_LPS
+	if (lps_changed)
+		LPS_Enter(current_lps_iface, "LPS_CTRL_PHYDM");
+#endif
 	/*
 	 * Check GPIO to determine current RF on/off and Pbc status.
 	 * Check Hardware Radio ON/OFF or not
@@ -738,6 +746,52 @@ void rtl8822c_set_txpwr_done(_adapter *adapter)
 #define DBG_TX_POWER_IDX 0
 #endif
 
+static u8 rtl8822c_get_dis_dpd_by_rate_diff(PADAPTER adapter, u8 rate)
+{
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
+	u16 dis_dpd_rate;
+	u8 dis_dpd_rate_diff = 0;
+
+	dis_dpd_rate = phydm_get_dis_dpd_by_rate_8822c(phydm);
+	switch (rate) {
+		case MGN_6M:
+				((dis_dpd_rate & BIT(0)) == BIT(0))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);
+			break;
+		case MGN_9M:
+				((dis_dpd_rate & BIT(1)) == BIT(1))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);
+			break;
+		case MGN_MCS0:
+				((dis_dpd_rate & BIT(2)) == BIT(2))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);			
+			break;
+		case MGN_MCS1:
+				((dis_dpd_rate & BIT(3)) == BIT(3))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);			
+			break;
+		case MGN_MCS8:
+				((dis_dpd_rate & BIT(4)) == BIT(4))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);				
+			break;
+		case MGN_MCS9:
+				((dis_dpd_rate & BIT(5)) == BIT(5))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);			
+			break;
+		case MGN_VHT1SS_MCS0:
+				((dis_dpd_rate & BIT(6)) == BIT(6))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);				
+			break;
+		case MGN_VHT1SS_MCS1:
+				((dis_dpd_rate & BIT(7)) == BIT(7))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);				
+			break;
+		case MGN_VHT2SS_MCS0:
+				((dis_dpd_rate & BIT(8)) == BIT(8))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);			
+			break;
+		case MGN_VHT2SS_MCS1:
+				((dis_dpd_rate & BIT(9)) == BIT(9))?(dis_dpd_rate_diff = 3):(dis_dpd_rate_diff = 0);			
+			break;
+		default:
+			dis_dpd_rate_diff = 0;
+			break;
+	}
+
+	return dis_dpd_rate_diff;
+}
+
 /*
  * Parameters:
  *	padatper
@@ -807,7 +861,7 @@ u8 rtl8822c_get_tx_power_index(PADAPTER adapter, enum rf_path rfpath, u8 rate, u
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	s16 power_idx;
 	u8 pg = 0;
-	s8 by_rate_diff = 0, limit = 0, tpt_offset = 0, extra_bias = 0, by_btc_diff = 0;
+	s8 by_rate_diff = 0, limit = 0, tpt_offset = 0, btc_diff = 0, dis_dpd_rate_diff = 0;
 	u8 ntx_idx = phy_get_current_tx_num(adapter, rate);
 	u8 bIn24G = _FALSE;
 
@@ -821,21 +875,16 @@ u8 rtl8822c_get_tx_power_index(PADAPTER adapter, enum rf_path rfpath, u8 rate, u
 
 #ifdef CONFIG_BT_COEXIST
 	if (hal->EEPROMBluetoothCoexist == _TRUE)
-		by_btc_diff = -(rtw_btcoex_query_reduced_wl_pwr_lvl(adapter) * hal_spec->txgi_pdbm);
+		btc_diff = -(rtw_btcoex_query_reduced_wl_pwr_lvl(adapter) * hal_spec->txgi_pdbm);
 #endif
 
-	if (tic) {
-		tic->ntx_idx = ntx_idx;
-		tic->pg = pg;
-		tic->by_rate = by_rate_diff;
-		tic->limit = limit;
-		tic->tpt = tpt_offset;
-		tic->ebias = extra_bias;
-		tic->btc = by_btc_diff;
-	}
+	dis_dpd_rate_diff = -(rtl8822c_get_dis_dpd_by_rate_diff(adapter, rate) * hal_spec->txgi_pdbm);
+
+	if (tic)
+		txpwr_idx_comp_set(tic, ntx_idx, pg, by_rate_diff, limit, tpt_offset, 0, btc_diff, dis_dpd_rate_diff);
 
 	by_rate_diff = by_rate_diff > limit ? limit : by_rate_diff;
-	power_idx = pg + by_rate_diff + tpt_offset + extra_bias + by_btc_diff;
+	power_idx = pg + by_rate_diff + tpt_offset + btc_diff + dis_dpd_rate_diff;
 
 #if 0
 #if CCX_SUPPORT

@@ -109,7 +109,9 @@ MODULE_DEVICE_TABLE(sdio, sdio_ids);
 
 static int rtw_drv_init(struct sdio_func *func, const struct sdio_device_id *id);
 static void rtw_dev_remove(struct sdio_func *func);
+#ifdef CONFIG_SDIO_HOOK_DEV_SHUTDOWN
 static void rtw_dev_shutdown(struct device *dev);
+#endif
 static int rtw_sdio_resume(struct device *dev);
 static int rtw_sdio_suspend(struct device *dev);
 extern void rtw_dev_unload(PADAPTER padapter);
@@ -1039,6 +1041,7 @@ static void rtw_dev_remove(struct sdio_func *func)
 
 }
 
+#ifdef CONFIG_SDIO_HOOK_DEV_SHUTDOWN
 static void rtw_dev_shutdown(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
@@ -1048,10 +1051,33 @@ static void rtw_dev_shutdown(struct device *dev)
 
 	RTW_INFO("==> %s !\n", __func__);
 
+#if 0
 	rtw_dev_remove(func);
+#else
+	{
+		struct dvobj_priv *dvobj = sdio_get_drvdata(func);
+		PADAPTER padapter = dvobj_get_primary_adapter(dvobj);
+		struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(dvobj);
+
+#ifdef CONFIG_BT_COEXIST
+		rtw_btcoex_SetManualControl(padapter, _TRUE);
+#endif
+
+		while (pwrpriv->bips_processing == _TRUE)
+			rtw_msleep_os(1);
+
+		rtw_mi_scan_abort(padapter, _FALSE);
+
+		rtw_set_drv_stopped(padapter);
+		rtw_intf_stop(padapter);
+		rtw_hal_power_off(padapter);
+		rtw_set_surprise_removed(padapter);
+	}
+#endif
 
 	RTW_INFO("<== %s !\n", __func__);
 }
+#endif
 
 extern int pm_netdev_open(struct net_device *pnetdev, u8 bnormal);
 extern int pm_netdev_close(struct net_device *pnetdev, u8 bnormal);

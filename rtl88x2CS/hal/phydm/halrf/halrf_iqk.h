@@ -77,10 +77,10 @@ struct dm_iqk_info {
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_real*/
 	/*channel index = 2 is just for debug*/
 #if (RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 )
-	u32 iqk_cfir_real[3][4][2][17];
+	u16 iqk_cfir_real[3][2][2][17];
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_imag*/
 	/*channel index = 2 is just for debug*/
-	u32 iqk_cfir_imag[3][4][2][17];
+	u16 iqk_cfir_imag[3][2][2][17];
 	u32 rx_cfir_real[2][2][17];
 	u32 rx_cfir_imag[2][2][17];
 	u32 rx_cfir[2][2];

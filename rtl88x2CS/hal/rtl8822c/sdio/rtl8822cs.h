@@ -20,6 +20,7 @@
 
 /* rtl8822cs_halinit.c */
 u32 rtl8822cs_init(PADAPTER);
+u32 rtl8822cs_deinit(PADAPTER adapter);
 void rtl8822cs_init_default_value(PADAPTER);
 
 /* rtl8822cs_halmac.c */

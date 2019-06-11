@@ -89,7 +89,7 @@ enum rf_type {
 };
 
 enum bb_path {
-	BB_PATH_AUTO = 0, /*for path diversity*/
+	BB_PATH_NON = 0,
 	BB_PATH_A = 0x00000001,
 	BB_PATH_B = 0x00000002,
 	BB_PATH_C = 0x00000004,
@@ -108,6 +108,7 @@ enum bb_path {
 	BB_PATH_BCD = (BB_PATH_B | BB_PATH_C | BB_PATH_D),
 
 	BB_PATH_ABCD = (BB_PATH_A | BB_PATH_B | BB_PATH_C | BB_PATH_D),
+	BB_PATH_AUTO = 0xff /*for path diversity*/
 };
 
 enum rf_path {
@@ -217,6 +218,10 @@ struct cmn_sta_info {
 	/*u8		total_pw2cca_cnt;*/
 };
 
+struct phydm_phyinfo_fw_struct {
+	u8		rx_rssi[4];	/* RSSI in 0~100 index */
+};
+
 struct phydm_phyinfo_struct {
 	u8		rx_pwdb_all;
 	u8		signal_quality;				/* OFDM: signal_quality=rx_mimo_signal_quality[0], CCK: signal qualityin 0-100 index. */
@@ -234,7 +239,7 @@ struct phydm_phyinfo_struct {
 	u8		ant_idx[4];	/*per-path's antenna index*/
 /*ODM_PHY_STATUS_NEW_TYPE_SUPPORT*/
 	u8		rx_count:2;					/* RX path counter---*/
-	u8		band_width:2;
+	u8		band_width:3;
 	u8		rxsc:4;						/* sub-channel---*/
 	u8		channel;						/* channel number---*/
 	u8		is_mu_packet:1;				/* is MU packet or not---boolean*/

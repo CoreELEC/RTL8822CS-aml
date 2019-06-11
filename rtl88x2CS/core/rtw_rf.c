@@ -574,6 +574,7 @@ const char *const _regd_str[] = {
 	"KCC",
 	"ACMA",
 	"CHILE",
+	"MEXICO",
 	"WW",
 };
 

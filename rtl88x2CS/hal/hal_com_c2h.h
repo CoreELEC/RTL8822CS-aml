@@ -74,6 +74,7 @@ typedef enum _C2H_EVT {
 #ifdef RTW_PER_CMD_SUPPORT_FW
 	C2H_PER_RATE_RPT = 0x2c,
 #endif
+	C2H_LPS_STATUS_RPT = 0x32,
 	C2H_DEFEATURE_RSVD = 0xFD,
 	C2H_EXTEND = 0xff,
 } C2H_EVT;

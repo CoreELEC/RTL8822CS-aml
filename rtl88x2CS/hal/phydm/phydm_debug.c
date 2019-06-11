@@ -2426,9 +2426,13 @@ void phydm_basic_dbg_message(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_fa_struct *fa_t = &dm->false_alm_cnt;
 
+	#ifdef ROKU_PRIVATE
+	/*if (!(dm->debug_components & DBG_CMN))*/
+	/*	return;				*/
+	# else
 	if (!(dm->debug_components & DBG_CMN))
 		return;
-	
+	#endif /*ROKU_PRIVATE*/
 
 	if (dm->cmn_dbg_msg_cnt >= dm->cmn_dbg_msg_period) {
 		dm->cmn_dbg_msg_cnt = PHYDM_WATCH_DOG_PERIOD;

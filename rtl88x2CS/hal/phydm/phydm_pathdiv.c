@@ -602,8 +602,8 @@ void phydm_set_resp_tx_path_by_fw_jgr3(void *dm_void, u8 macid,
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct _ODM_PATH_DIVERSITY_ *p_div = &dm->dm_path_div;
-	u8 h2c_para[6] = {0};
-	u8 path_map[4] = {0};
+	u8 h2c_para[7] = {0};
+	u8 path_map[4] = {0}; /* tx logic map*/
 	u8 num_enable_path = 0;
 	u8 n_tx_path_ctrl_map = 0;
 	u8 i = 0, n_sts = 0;
@@ -611,8 +611,6 @@ void phydm_set_resp_tx_path_by_fw_jgr3(void *dm_void, u8 macid,
 	/*Response TX is controlled in FW ctrl info*/
 
 	PHYDM_DBG(dm, DBG_PATH_DIV, "[%s] =====>\n", __func__);
-
-	return; /*to be varified*/
 
 	if (enable) {
 		n_tx_path_ctrl_map = path;
@@ -643,7 +641,7 @@ void phydm_set_resp_tx_path_by_fw_jgr3(void *dm_void, u8 macid,
 	h2c_para[2] = (path_map[3] << 6) | (path_map[2] << 4) |
 		      (path_map[1] << 2) | path_map[0];
 
-	odm_fill_h2c_cmd(dm, PHYDM_H2C_DYNAMIC_TX_PATH, 6, h2c_para);
+	odm_fill_h2c_cmd(dm, PHYDM_H2C_DYNAMIC_TX_PATH, 7, h2c_para);
 }
 
 void phydm_get_tx_path_txdesc_jgr3(void *dm_void, u8 macid,
@@ -780,10 +778,7 @@ void phydm_set_tx_path_by_bb_reg(void *dm_void, enum bb_path tx_path_sel_1ss)
 	switch (dm->support_ic_type) {
 	#if RTL8822C_SUPPORT
 	case ODM_RTL8822C:
-		if (dm->tx_ant_status != BB_PATH_AB)
-			return;
-
-		phydm_config_tx_path_8822c(dm, BB_PATH_AB,
+		phydm_config_tx_path_8822c(dm, dm->tx_2ss_status,
 					   tx_path_sel_1ss, tx_path_sel_cck);
 		break;
 	#endif
@@ -901,8 +896,8 @@ void phydm_tx_path_diversity(void *dm_void)
 
 	if (p_div->stop_path_div) {
 		PHYDM_DBG(dm, DBG_PATH_DIV,
-			  "stop_path_div=1, Fix Path tx_1ss_Path=%s\n",
-			  (dm->tx_1ss_status == BB_PATH_A) ? "A" : "B");
+			  "stop_path_div=1, tx_1ss_status=%d\n",
+			  dm->tx_1ss_status);
 		return;
 	}
 
@@ -911,12 +906,10 @@ void phydm_tx_path_diversity(void *dm_void)
 	case ODM_RTL8812:
 	case ODM_RTL8822B:
 	case ODM_RTL8822C:
-		if (dm->tx_ant_status != BB_PATH_AB ||
-		    dm->rx_ant_status != BB_PATH_AB) {
+		if (dm->rx_ant_status != BB_PATH_AB) {
 			PHYDM_DBG(dm, DBG_PATH_DIV,
-				  "[Return] tx_Path_en=%s, rx_Path_en=%s\n",
-				  (dm->tx_ant_status == BB_PATH_A) ? "A" : "B",
-				  (dm->rx_ant_status == BB_PATH_A) ? "A" : "B");
+				  "[Return] tx_Path_en=%d, rx_Path_en=%d\n",
+				  dm->tx_ant_status, dm->rx_ant_status);
 			return;
 		}
 
@@ -942,7 +935,7 @@ void phydm_tx_path_diversity_init_v2(void *dm_void)
 	PHYDM_DBG(dm, DBG_PATH_DIV, "[%s] ====>\n", __func__);
 
 	/*BB_PATH_AB is a invalid value used for init state*/
-	p_div->default_tx_path = BB_PATH_AB;
+	p_div->default_tx_path = BB_PATH_A;
 	p_div->tx_path_ctrl = TX_PATH_CTRL_INIT;
 	p_div->path_div_in_progress = false;
 

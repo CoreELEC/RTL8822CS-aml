@@ -210,6 +210,33 @@ void rtl8822c_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode)
 	RTW_INFO(FUNC_ADPT_FMT": fw ps mode = %s, drv ps mode = %d, rlbm = %d , smart_ps = %d, allQueueUAPSD = %d\n", 
 				FUNC_ADPT_ARG(adapter), fw_psmode_str, psmode, rlbm, smart_ps, allQueueUAPSD);
 
+#ifdef CONFIG_LPS_1T1R
+	if (psmode > PS_MODE_ACTIVE) {
+		HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+
+		if (hal_data->lps_1t1r != pwrpriv->lps_1t1r
+			/* if rf_type already 1T1R, no need to enable LPS-1T1R */
+			&& hal_data->NumTotalRFPath > 1
+			#if 0 /* this branch always have pathA on both TX and RX */
+			/* for now, FW LPS 1T1R operates on TX:A, RX:A */
+			&& GET_HAL_TX_PATH_BMP(adapter) & 0x01
+			&& GET_HAL_RX_PATH_BMP(adapter) & 0x01
+			#endif
+		) {
+			/* TODO: cmd macro defined by halmac */
+			#define SET_PWR_MODE_EXT_SET_1T1R_EN(h2c_pkt, value) SET_BITS_TO_LE_4BYTE(h2c_pkt + 0X00, 8, 1, value)
+			u8 h2c_ext[RTW_HALMAC_H2C_MAX_SIZE] = {0};
+
+			SET_PWR_MODE_SET_CMD_ID(h2c_ext, 0x11); /* TODO: CMD_ID defined by halmac */
+			SET_PWR_MODE_SET_CLASS(h2c_ext, CLASS_SET_PWR_MODE);
+			SET_PWR_MODE_EXT_SET_1T1R_EN(h2c_ext, pwrpriv->lps_1t1r);
+			RTW_DBG_DUMP("H2C-PwrModeExt Parm:", h2c_ext, RTW_HALMAC_H2C_MAX_SIZE);
+			if (rtw_halmac_send_h2c(adapter_to_dvobj(adapter), h2c_ext) == 0)
+				hal_data->lps_1t1r = pwrpriv->lps_1t1r;
+		}
+	}
+#endif
+
 	SET_PWR_MODE_SET_CMD_ID(h2c, CMD_ID_SET_PWR_MODE);
 	SET_PWR_MODE_SET_CLASS(h2c, CLASS_SET_PWR_MODE);
 	SET_PWR_MODE_SET_MODE(h2c, mode);
@@ -534,6 +561,12 @@ static void process_c2h_event(PADAPTER adapter, u8 *c2h, u32 size)
 			break;
 		}
 #endif
+		else if (C2H_HDR_GET_C2H_SUB_CMD_ID(pc2h_data) == 0x1B) {
+			/* C2H_SUB_CMD_ID_C2H_PKT_FW_STATUS_NOTIFY */
+			break;
+		}
+
+
 		/* indicate c2h pkt + rx desc to halmac */
 		rtw_halmac_c2h_handle(adapter_to_dvobj(adapter), c2h, size);
 		break;

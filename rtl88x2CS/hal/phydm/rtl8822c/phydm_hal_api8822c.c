@@ -180,8 +180,10 @@ config_phydm_direct_write_rf_reg_8822c(struct dm_struct *dm, enum rf_path path,
 	bit_mask &= RFREG_MASK;
 
 	/* direct write only*/
-	odm_set_mac_reg(dm, R_0x1c, BIT(31) | BIT(30), 0x3);
-	odm_set_mac_reg(dm, R_0xec, BIT(31) | BIT(30), 0x3);
+	if (reg_addr == RF_0x18) {
+		odm_set_mac_reg(dm, R_0x1c, BIT(31) | BIT(30), 0x3);
+		odm_set_mac_reg(dm, R_0xec, BIT(31) | BIT(30), 0x3);
+	}
 
 	/* @write RF register directly*/
 	odm_set_bb_reg(dm, direct_addr, bit_mask, data);
@@ -189,8 +191,10 @@ config_phydm_direct_write_rf_reg_8822c(struct dm_struct *dm, enum rf_path path,
 	ODM_delay_us(1);
 
 	/* default setting: RF-0x0 is PI, others are direct*/
-	odm_set_mac_reg(dm, R_0x1c, BIT(31) | BIT(30), 0x2);
-	odm_set_mac_reg(dm, R_0xec, BIT(31) | BIT(30), 0x2);
+	if (reg_addr == RF_0x18) {
+		odm_set_mac_reg(dm, R_0x1c, BIT(31) | BIT(30), 0x2);
+		odm_set_mac_reg(dm, R_0xec, BIT(31) | BIT(30), 0x2);
+	}
 
 	PHYDM_DBG(dm, ODM_PHY_CONFIG, "RF-%d 0x%x = 0x%x , bit mask = 0x%x\n",
 		  path, reg_addr, data, bit_mask);
@@ -809,6 +813,56 @@ u8 config_phydm_read_txagc_8822c(struct dm_struct *dm, enum rf_path path,
 
 __odm_func__
 void
+phydm_get_tx_path_en_setting_8822c(struct dm_struct *dm,
+				   struct tx_path_en_8822c *path)
+{
+	u32 val = 0;
+
+	/*@OFDM*/
+	val = odm_get_bb_reg(dm, R_0x820, MASKDWORD);
+	path->tx_path_en_ofdm_2sts = (u8)((val & 0xf0) >> 4);
+	path->tx_path_en_ofdm_1sts = (u8)(val & 0xf);
+
+	/*@CCK*/
+	val = odm_get_bb_reg(dm, R_0x1a04, 0xf0000000);
+
+	if (val == 0xc)
+		path->tx_path_en_cck = 3; /*AB*/
+	else if (val == 0x8)
+		path->tx_path_en_cck = 1; /*A*/
+	else if (val == 0x4)
+		path->tx_path_en_cck = 2; /*B*/
+	else if (val == 0x0)
+		path->tx_path_en_cck = 0; /*disable cck tx in 5G*/
+
+	/*@Path CTRL source*/
+	val = odm_get_bb_reg(dm, R_0x1e24, BIT(16));
+	path->is_path_ctrl_by_bb_reg = (boolean)(~val);
+}
+
+__odm_func__
+void
+phydm_get_rx_path_en_setting_8822c(struct dm_struct *dm,
+				   struct rx_path_en_8822c *path)
+{
+	u32 val = 0;
+
+	/*@OFDM*/
+	path->rx_path_en_ofdm = (u8)odm_get_bb_reg(dm, R_0x824, 0xf0000);
+
+	/*@CCK*/
+	val = odm_get_bb_reg(dm, R_0x1a04, 0x0f000000);
+
+	if (val == 0x1)
+		path->rx_path_en_cck = 3; /*AB*/
+	else if (val == 0x0)
+		path->rx_path_en_cck = 1; /*A*/
+	else if (val == 0x5)
+		path->rx_path_en_cck = 2; /*B*/
+}
+
+__odm_func__
+void
 phydm_config_cck_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path)
 {
 	if (tx_path == BB_PATH_A)
@@ -881,44 +935,23 @@ phydm_config_cck_rx_path_8822c(struct dm_struct *dm, enum bb_path rx_path)
 
 __odm_func__
 void
-phydm_get_tx_path_en_setting_8822c(struct dm_struct *dm,
-				   struct tx_path_en_8822c *path)
-{
-	u32 val = 0;
-
-	/*@OFDM*/
-	val = odm_get_bb_reg(dm, R_0x820, MASKDWORD);
-	path->tx_path_en_ofdm_2sts = (u8)((val & 0xf0) >> 4);
-	path->tx_path_en_ofdm_1sts = (u8)(val & 0xf);
-
-	/*@CCK*/
-	val = odm_get_bb_reg(dm, R_0x1a04, 0xf0000000);
-
-	if (val == 0xc)
-		path->tx_path_en_cck = 3; /*AB*/
-	else if (val == 0x8)
-		path->tx_path_en_cck = 1; /*A*/
-	else
-		path->tx_path_en_cck = 2; /*B*/
-
-	/*@Path CTRL source*/
-	val = odm_get_bb_reg(dm, R_0x1e24, BIT(16));
-	path->is_path_ctrl_by_bb_reg = (boolean)(~val);
-}
-
-__odm_func__
-void
-phydm_config_ofdm_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
+phydm_config_ofdm_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path_2ss,
 				enum bb_path tx_path_sel_1ss)
 {
-	/* @Set TX logic map and TX path_en*/
-	if (tx_path_en == BB_PATH_A) { /* @1T, 1ss */
-		odm_set_bb_reg(dm, R_0x820, 0xff, 0x11);
-		odm_set_bb_reg(dm, R_0x1e2c, 0xffff, 0x0);
-	} else if (tx_path_en == BB_PATH_B) {
-		odm_set_bb_reg(dm, R_0x820, 0xff, 0x12);
-		odm_set_bb_reg(dm, R_0x1e2c, 0xffff, 0x0);
-	} else { /*BB_PATH_AB*/
+	u8 tx_path_2ss_en = false;
+
+	if (tx_path_2ss == BB_PATH_AB)
+		tx_path_2ss_en = true;
+
+	if (!tx_path_2ss_en) {/* 1ss1T, do not config this with STBC*/
+		if (tx_path_sel_1ss == BB_PATH_A) {
+			odm_set_bb_reg(dm, R_0x820, 0xff, 0x1);
+			odm_set_bb_reg(dm, R_0x1e2c, 0xffff, 0x0);
+		} else { /*if (tx_path_sel_1ss == BB_PATH_B)*/
+			odm_set_bb_reg(dm, R_0x820, 0xff, 0x2);
+			odm_set_bb_reg(dm, R_0x1e2c, 0xffff, 0x0);
+		}
+	} else {
 		if (tx_path_sel_1ss == BB_PATH_A) {
 			odm_set_bb_reg(dm, R_0x820, 0xff, 0x31);
 			odm_set_bb_reg(dm, R_0x1e2c, 0xffff, 0x0400);
@@ -930,17 +963,6 @@ phydm_config_ofdm_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
 			odm_set_bb_reg(dm, R_0x1e2c, 0xffff, 0x0404);
 		}
 	}
-#if 0
-	/* @TX logic map and TX path en for Nsts = 2*/
-	/*
-	 * @Due to LO is stand-by while 1T at path-b in normal driver,
-	 * @so 0x940 is the same setting btw path-A/B
-	 */
-	if (tx_path_en == BB_PATH_A || tx_path_en == BB_PATH_B) {
-		odm_set_bb_reg(dm, R_0x820, 0xf0, 0x1);
-		odm_set_bb_reg(dm, R_0x1e2c, 0xf00, 0x0);
-	}
-#endif
 
 #ifdef CONFIG_PATH_DIVERSITY
 	if (!dm->dm_path_div.path_div_in_progress)
@@ -951,10 +973,9 @@ phydm_config_ofdm_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
 }
 
 __odm_func__
-boolean
+void
 phydm_config_ofdm_rx_path_8822c(struct dm_struct *dm, enum bb_path rx_path)
 {
-	boolean set_result = PHYDM_SET_SUCCESS;
 	u32 ofdm_rx = 0x0;
 
 	ofdm_rx = (u32)rx_path;
@@ -1011,25 +1032,26 @@ phydm_config_ofdm_rx_path_8822c(struct dm_struct *dm, enum bb_path rx_path)
 #else
 	phydm_bb_reset_8822c(dm);
 #endif
-	return set_result;
 }
 
 __odm_func__
-void phydm_config_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
+void phydm_config_tx_path_8822c(struct dm_struct *dm, enum bb_path tx_path_2ss,
 				enum bb_path tx_path_sel_1ss,
 				enum bb_path tx_path_sel_cck)
 {
-	dm->tx_ant_status = tx_path_en;
+	dm->tx_2ss_status = tx_path_2ss;
 	dm->tx_1ss_status = tx_path_sel_1ss;
+
+	dm->tx_ant_status = dm->tx_2ss_status | dm->tx_1ss_status;
 
 	/* @CCK TX antenna mapping */
 	phydm_config_cck_tx_path_8822c(dm, tx_path_sel_cck);
 
 	/* @OFDM TX antenna mapping*/
-	phydm_config_ofdm_tx_path_8822c(dm, tx_path_en, tx_path_sel_1ss);
+	phydm_config_ofdm_tx_path_8822c(dm, tx_path_2ss, tx_path_sel_1ss);
 
-	PHYDM_DBG(dm, DBG_PATH_DIV, "tx_path_sel_1ss=%d, tx_path_sel_cck=%d\n",
-		  tx_path_sel_1ss, tx_path_sel_cck);
+	PHYDM_DBG(dm, ODM_PHY_CONFIG, "path_sel_2ss/1ss/cck={%d, %d, %d}\n",
+		  tx_path_2ss, tx_path_sel_1ss, tx_path_sel_cck);
 
 #ifdef CONFIG_PATH_DIVERSITY
 	if (!dm->dm_path_div.path_div_in_progress)
@@ -1048,10 +1070,6 @@ void phydm_config_rx_path_8822c(struct dm_struct *dm, enum bb_path rx_path)
 	/* @OFDM RX antenna mapping*/
 	phydm_config_ofdm_rx_path_8822c(dm, rx_path);
 
-	/* @Set unused RF path to standby mode */
-	if (rx_path == BB_PATH_A)
-		odm_set_rf_reg(dm, RF_PATH_B, RF_0x0, 0xf0000, 0x1);
-
 	dm->rx_ant_status = rx_path;
 
 #ifdef CONFIG_PATH_DIVERSITY
@@ -1063,6 +1081,44 @@ void phydm_config_rx_path_8822c(struct dm_struct *dm, enum bb_path rx_path)
 }
 
 __odm_func__
+void
+phydm_set_rf_mode_table_8822c(struct dm_struct *dm,
+			      enum bb_path tx_path_mode_table,
+			      enum bb_path rx_path)
+{
+	 /* @Cannot shut down path-A, beacause synthesizer will shut down
+	  * @when path-A is in shut down mode
+	  */
+
+	/* @[3-wire setting]  0: shutdown, 1: standby, 2: TX, 3: RX*/
+	if (tx_path_mode_table == BB_PATH_A) {
+		if (rx_path == BB_PATH_A) {
+			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33312);
+			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x0);
+		} else { /* @BB_PATH_AB*/
+			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33312);
+			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x33311);
+		}
+	} else if (tx_path_mode_table == BB_PATH_B) {
+		if (rx_path == BB_PATH_A) {
+			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33311);
+			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x11112);
+		} else {
+			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33311);
+			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x33312);
+		}
+	} else if (tx_path_mode_table == BB_PATH_AB) {
+		if (rx_path == BB_PATH_A) {
+			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33312);
+			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x11112);
+		} else {
+			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33312);
+			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x33312);
+		}
+	}
+}
+
+__odm_func__
 boolean
 config_phydm_trx_mode_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
 			    enum bb_path rx_path, enum bb_path tx_path_sel_1ss)
@@ -1070,6 +1126,10 @@ config_phydm_trx_mode_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
 #ifdef CONFIG_PATH_DIVERSITY
 	struct _ODM_PATH_DIVERSITY_ *p_div = &dm->dm_path_div;
 #endif
+	boolean disable_2sts_div_mode = false;
+	enum bb_path tx_path_mode_table = tx_path_en;
+	enum bb_path tx_path_2ss = BB_PATH_AB;
+
 	PHYDM_DBG(dm, ODM_PHY_CONFIG, "%s ======>\n", __func__);
 
 	if (dm->is_disable_phy_api) {
@@ -1077,55 +1137,39 @@ config_phydm_trx_mode_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
 		return true;
 	}
 
-	if ((tx_path_en & ~BB_PATH_AB) || (rx_path & ~BB_PATH_AB)) {
-		pr_debug("[Warning][%s] T/RX:0x%x/0x%x\n", __func__, tx_path_en,
-			 rx_path);
+	/*RX Check*/
+	if (rx_path & ~BB_PATH_AB) {
+		pr_debug("[Warning][%s] RX:0x%x\n", __func__, rx_path);
 		return false;
 	}
 
-	/* @[mode table] RF mode of path-A and path-B =======================*/
-	/*
-	 * @Cannot shut down path-A, beacause synthesizer will be shut down
-	 * @when path-A is in shut down mode
-	 */
-	/* @3-wire setting */
-	/* @0: shutdown, 1: standby, 2: TX, 3: RX */
-	/* @RF mode setting*/
-
-	if (tx_path_en == BB_PATH_A) {
-		if (rx_path == BB_PATH_A) {
-			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33312);
-			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x11111);
-		} else { /* @BB_PATH_AB*/
-			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33312);
-			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x33311);
-		}
-	} else if (tx_path_en == BB_PATH_B) {
-		if (rx_path == BB_PATH_A) {
-			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33311);
-			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x11112);
-		} else {
-			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33311);
-			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x33312);
-		}
-	} else if (tx_path_en == BB_PATH_AB) {
-		if (rx_path == BB_PATH_A) {
-			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33312);
-			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x11112);
-		} else {
-			odm_set_bb_reg(dm, R_0x1800, 0xfffff, 0x33312);
-			odm_set_bb_reg(dm, R_0x4100, 0xfffff, 0x33312);
-		}
+	/*TX Check*/
+	if (tx_path_en == BB_PATH_AUTO && tx_path_sel_1ss == BB_PATH_AUTO) {
+		/*@ Shutting down 2sts rate, but 1sts PathDiv is enabled*/
+		disable_2sts_div_mode = true;
+		tx_path_mode_table = BB_PATH_AB;
+	} else if (tx_path_en & ~BB_PATH_AB) {
+		pr_debug("[Warning][%s] TX:0x%x\n", __func__, tx_path_en);
+		return false;
 	}
 
-	/* @==== [RX Antenna] ===========================================*/
+	/* @==== [RF Mode Table] ========================================*/
+	phydm_set_rf_mode_table_8822c(dm, tx_path_mode_table, rx_path);
+
+	/* @==== [RX Path] ==============================================*/
 	phydm_config_rx_path_8822c(dm, rx_path);
 
-	/* @==== [TX Antenna] ===========================================*/
+	/* @==== [TX Path] ==============================================*/
 #ifdef CONFIG_PATH_DIVERSITY
+	/*@ [PHYDM-312]*/
+	if (p_div->default_tx_path != BB_PATH_A &&
+	    p_div->default_tx_path != BB_PATH_B)
+		p_div->default_tx_path = BB_PATH_A;
+
 	if (tx_path_en == BB_PATH_A || tx_path_en == BB_PATH_B) {
 		p_div->stop_path_div = true;
 		tx_path_sel_1ss = tx_path_en;
+		tx_path_2ss = BB_PATH_NON;
 	} else if (tx_path_en == BB_PATH_AB) {
 		if (tx_path_sel_1ss == BB_PATH_AUTO) {
 			p_div->stop_path_div = false;
@@ -1133,22 +1177,35 @@ config_phydm_trx_mode_8822c(struct dm_struct *dm, enum bb_path tx_path_en,
 		} else { /* @BB_PATH_AB, BB_PATH_A, BB_PATH_B*/
 			p_div->stop_path_div = true;
 		}
+		tx_path_2ss = BB_PATH_AB;
+	} else if (disable_2sts_div_mode) {
+		p_div->stop_path_div = false;
+		tx_path_sel_1ss = p_div->default_tx_path;
+		tx_path_2ss = BB_PATH_NON;
 	}
 #else
-	tx_path_sel_1ss = tx_path_en;
+	if (dm->tx_1ss_status == BB_PATH_NON)
+		dm->tx_1ss_status = BB_PATH_A;
+
+	if (tx_path_en == BB_PATH_A || tx_path_en == BB_PATH_B) {
+		tx_path_2ss = BB_PATH_NON;
+		tx_path_sel_1ss = tx_path_en;
+	} else if (tx_path_en == BB_PATH_AB) {
+		tx_path_2ss = BB_PATH_AB;
+		if (tx_path_sel_1ss == BB_PATH_AUTO)
+			tx_path_sel_1ss = dm->tx_1ss_status;
+	} else if (disable_2sts_div_mode) {
+		tx_path_2ss = BB_PATH_NON;
+		tx_path_sel_1ss = dm->tx_1ss_status;
+	}
 #endif
-	phydm_config_tx_path_8822c(dm, tx_path_en, tx_path_sel_1ss,
+	phydm_config_tx_path_8822c(dm, tx_path_2ss, tx_path_sel_1ss,
 				   tx_path_sel_1ss);
 
-	/*
-	 * @Toggle igi to let RF enter RX mode,
-	 * @because BB doesn't send 3-wire command
-	 * @when RX path is enable
-	 */
 	phydm_igi_toggle_8822c(dm);
 
-	PHYDM_DBG(dm, ODM_PHY_CONFIG, "T/RX_en:0x%x/0x%x, tx_1ss:%x\n",
-		  tx_path_en, rx_path, tx_path_sel_1ss);
+	PHYDM_DBG(dm, ODM_PHY_CONFIG, "RX_en=%x, tx_en/2ss/1ss={%x,%x,%x}\n",
+		  rx_path, tx_path_en, tx_path_2ss, tx_path_sel_1ss);
 
 #ifdef CONFIG_PATH_DIVERSITY
 	if (!p_div->path_div_in_progress)
@@ -1177,6 +1234,10 @@ void phydm_dis_cck_trx_8822c(struct dm_struct *dm, u8 set_type)
 		/* @ CCK RxIQ weighting = [1,1] */
 		odm_set_bb_reg(dm, R_0x1a14, 0x300, 0x0);
 
+		if (dm->tx_1ss_status == BB_PATH_NON) {
+			dm->tx_1ss_status = BB_PATH_A;
+			pr_debug("[%s]tx_1ss is non !\n", __func__);
+		}
 		phydm_config_cck_tx_path_8822c(dm, dm->tx_1ss_status);
 	}
 	phydm_bb_reset_8822c(dm);
@@ -1844,6 +1905,34 @@ void phydm_ch_smooth_setting_8822c(struct dm_struct *dm, boolean en_ch_smooth)
 }
 
 __odm_func__
+u16 phydm_get_dis_dpd_by_rate_8822c(struct dm_struct *dm)
+{
+	u16 dis_dpd_rate = 0;
+
+	dis_dpd_rate = dm->dis_dpd_rate;
+
+	return dis_dpd_rate;
+}
+
+__odm_func__
+void phydm_set_dis_dpd_by_rate_8822c(struct dm_struct *dm, u16 bitmask)
+{
+	/* bit(0) : ofdm 6m*/
+	/* bit(1) : ofdm 9m*/
+	/* bit(2) : ht mcs0*/
+	/* bit(3) : ht mcs1*/
+	/* bit(4) : ht mcs8*/
+	/* bit(5) : ht mcs9*/
+	/* bit(6) : vht 1ss mcs0*/
+	/* bit(7) : vht 1ss mcs1*/
+	/* bit(8) : vht 2ss mcs0*/
+	/* bit(9) : vht 2ss mcs1*/
+
+	odm_set_bb_reg(dm, R_0xa70, 0x3ff, bitmask);
+	dm->dis_dpd_rate = bitmask;
+}
+
+__odm_func__
 boolean
 config_phydm_parameter_init_8822c(struct dm_struct *dm,
 				  enum odm_parameter_init type)
@@ -1851,6 +1940,12 @@ config_phydm_parameter_init_8822c(struct dm_struct *dm,
 	PHYDM_DBG(dm, ODM_PHY_CONFIG, "%s ======>\n", __func__);
 
 	phydm_cck_gi_bound_8822c(dm);
+
+	/* Disable low rate DPD*/
+	if (dm->en_dis_dpd)
+		phydm_set_dis_dpd_by_rate_8822c(dm, 0x3ff);
+	else
+		phydm_set_dis_dpd_by_rate_8822c(dm, 0x0);
 
 	/* @Do not use PHYDM API to read/write because FW can not access */
 	/* @Turn on 3-wire*/

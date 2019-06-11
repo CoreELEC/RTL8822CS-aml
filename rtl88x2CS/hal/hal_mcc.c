@@ -1260,12 +1260,6 @@ void rtw_hal_mcc_upadate_chnl_bw(_adapter *padapter, u8 ch, u8 ch_offset, u8 bw,
 	}
 }
 
-#ifdef DBG_RSVD_PAGE_CFG
-#define RSVD_PAGE_CFG(ops, v1, v2, v3)	\
-	RTW_INFO("=== [RSVD][%s]-NeedPage:%d, TotalPageNum:%d TotalPacketLen:%d ===\n",	\
-		ops, v1, v2, v3)
-#endif
-
 u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 	u8 tx_desc, u32 page_size, u8 *total_page_num, RSVDPAGE_LOC *rsvd_page_loc, u8 *page_num)
 {
@@ -1325,9 +1319,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			CurtPktPageNum = (u8)PageNum(tx_desc + len, page_size);
 			*total_page_num += CurtPktPageNum;
 			*index += (CurtPktPageNum * page_size);
-			#ifdef DBG_RSVD_PAGE_CFG
 			RSVD_PAGE_CFG("LocNull", CurtPktPageNum, *total_page_num, *index);
-			#endif
 			break;
 		case MCC_ROLE_AP:
 			/* Bulid CTS */
@@ -1342,9 +1334,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			CurtPktPageNum = (u8)PageNum(tx_desc + len, page_size);
 			*total_page_num += CurtPktPageNum;
 			*index += (CurtPktPageNum * page_size);
-			#ifdef DBG_RSVD_PAGE_CFG
 			RSVD_PAGE_CFG("LocCTS", CurtPktPageNum, *total_page_num, *index);
-			#endif
 			break;
 		case MCC_ROLE_GO:
 		/* To DO */
@@ -1644,9 +1634,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			CurtPktPageNum = 1;
 			*total_page_num += CurtPktPageNum;
 			*index += (CurtPktPageNum * page_size);
-			#ifdef DBG_RSVD_PAGE_CFG
 			RSVD_PAGE_CFG("mcc_pwr_idx_rsvd_page", CurtPktPageNum, *total_page_num, *index);
-			#endif
 		}
 
 exit:

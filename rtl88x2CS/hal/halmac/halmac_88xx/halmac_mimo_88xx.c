@@ -618,13 +618,14 @@ mu_bfer_entry_del_88xx(struct halmac_adapter *adapter)
  */
 enum halmac_ret_status
 cfg_csi_rate_88xx(struct halmac_adapter *adapter, u8 rssi, u8 cur_rate,
-		  u8 fixrate_en, u8 *new_rate)
+		  u8 fixrate_en, u8 *new_rate, u8 *bmp_ofdm54)
 {
 	u32 csi_cfg;
-	u16 cur_rrsr;
 	struct halmac_api *api = (struct halmac_api *)adapter->halmac_api;
 
 	PLTFM_MSG_TRACE("[TRACE]%s ===>\n", __func__);
+
+	*bmp_ofdm54 = 0xFF;
 
 #if HALMAC_8821C_SUPPORT
 	if (adapter->chip_id == HALMAC_CHIP_ID_8821C && fixrate_en) {
@@ -642,22 +643,19 @@ cfg_csi_rate_88xx(struct halmac_adapter *adapter, u8 rssi, u8 cur_rate,
 	csi_cfg = HALMAC_REG_R32(REG_BBPSF_CTRL) & ~BITS_WMAC_CSI_RATE;
 #endif
 
-	cur_rrsr = HALMAC_REG_R16(REG_RRSR);
 
 	if (rssi >= 40) {
 		if (cur_rate != HALMAC_OFDM54) {
-			cur_rrsr |= BIT(HALMAC_OFDM54);
 			csi_cfg |= BIT_WMAC_CSI_RATE(HALMAC_OFDM54);
-			HALMAC_REG_W16(REG_RRSR, cur_rrsr);
 			HALMAC_REG_W32(REG_BBPSF_CTRL, csi_cfg);
+			*bmp_ofdm54 = 1;
 		}
 		*new_rate = HALMAC_OFDM54;
 	} else {
 		if (cur_rate != HALMAC_OFDM24) {
-			cur_rrsr &= ~(BIT(HALMAC_OFDM54));
 			csi_cfg |= BIT_WMAC_CSI_RATE(HALMAC_OFDM24);
-			HALMAC_REG_W16(REG_RRSR, cur_rrsr);
 			HALMAC_REG_W32(REG_BBPSF_CTRL, csi_cfg);
+			*bmp_ofdm54 = 0;
 		}
 		*new_rate = HALMAC_OFDM24;
 	}

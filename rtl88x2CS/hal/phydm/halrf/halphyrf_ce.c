@@ -370,12 +370,20 @@ void odm_pwrtrk_method(void *dm_void)
 	if (dm->support_ic_type &
 		(ODM_RTL8188E | ODM_RTL8192E | ODM_RTL8821 | ODM_RTL8812 |
 		ODM_RTL8723B | ODM_RTL8814A | ODM_RTL8703B | ODM_RTL8188F |
-		ODM_RTL8822B | ODM_RTL8723D | ODM_RTL8821C | ODM_RTL8710B |
+		ODM_RTL8822B | ODM_RTL8821C | ODM_RTL8710B |
 		ODM_RTL8192F)) {
 		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
 		       "***Enter PwrTrk MIX_MODE***\n");
 		for (p = RF_PATH_A; p < c.rf_path_count; p++)
 			(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
+	} else if (dm->support_ic_type & ODM_RTL8723D) {
+		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "***Enter PwrTrk MIX_MODE***\n");
+		p = (u8)odm_get_bb_reg(dm, R_0x948, 0x00000080);
+		(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
+		/*if open ant_div 0x948=140,do 2 path pwr_track*/
+		if (odm_get_bb_reg(dm, R_0x948, 0x00000040))
+			(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, 1, 0);
 	} else {
 		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
 		       "***Enter PwrTrk BBSWING_MODE***\n");

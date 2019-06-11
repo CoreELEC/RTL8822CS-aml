@@ -199,7 +199,20 @@ struct txpwr_idx_comp {
 	s8 tpt;
 	s8 ebias;
 	s8 btc;
+	s8 dpd;
 };
+
+#define txpwr_idx_comp_set(_tic, _ntx_idx, _pg, _by_rate, _limit, _tpt, _ebias, _btc, _dpd) \
+	do { \
+		(_tic)->ntx_idx = _ntx_idx; \
+		(_tic)->pg = _pg; \
+		(_tic)->by_rate = _by_rate; \
+		(_tic)->limit = _limit; \
+		(_tic)->tpt = _tpt; \
+		(_tic)->ebias = _ebias; \
+		(_tic)->btc = _btc; \
+		(_tic)->dpd = _dpd; \
+	} while (0)
 
 u8
 phy_get_tx_power_index(

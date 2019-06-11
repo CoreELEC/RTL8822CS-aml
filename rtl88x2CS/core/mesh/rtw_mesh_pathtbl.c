@@ -359,7 +359,7 @@ void dump_mpath(void *sel, _adapter *adapter)
 		rtw_rcu_read_unlock();
 
 		if (mpath) {
-			RTW_PRINT_SEL(sel, MAC_FMT" "MAC_FMT" %10u %10u %4u %6u %6u %4u%s%s%s%s%s\n"
+			RTW_PRINT_SEL(sel, MAC_FMT" "MAC_FMT" %10u %10u %4u %6u %6u %4u%s%s%s%s%s%s%s%s%s%s\n"
 				, MAC_ARG(dst), MAC_ARG(next_hop), sn, metric, qlen
 				, exp_ms < 999999 ? exp_ms : 999999
 				, dto_ms < 999999 ? dto_ms : 999999
@@ -369,6 +369,11 @@ void dump_mpath(void *sel, _adapter *adapter)
 				, (flags & RTW_MESH_PATH_SN_VALID) ? " SN_VALID" : ""
 				, (flags & RTW_MESH_PATH_FIXED) ?  " FIXED" : ""
 				, (flags & RTW_MESH_PATH_RESOLVED) ? " RSVED" : ""
+				, (flags & RTW_MESH_PATH_REQ_QUEUED) ? " REQ_IN_Q" : ""
+				, (flags & RTW_MESH_PATH_DELETED) ? " DELETED" : ""
+				, (flags & RTW_MESH_PATH_ROOT_ADD_CHK) ? " R_ADD_CHK" : ""
+				, (flags & RTW_MESH_PATH_PEER_AKA) ? " PEER_AKA" : ""
+				, (flags & RTW_MESH_PATH_BCAST_PREQ) ? " BC_PREQ" : ""
 			);
 		}
 

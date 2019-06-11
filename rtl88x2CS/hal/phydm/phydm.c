@@ -2282,6 +2282,9 @@ void odm_cmn_info_init(struct dm_struct *dm, enum odm_cmninfo cmn_info,
 	case ODM_CMNINFO_HP_HWID:
 		dm->hp_hw_id = (boolean)value;
 		break;
+	case ODM_CMNINFO_DIS_DPD:
+		dm->en_dis_dpd = (boolean)value;
+		break;
 	default:
 		break;
 	}
@@ -2530,6 +2533,9 @@ void odm_cmn_info_update(struct dm_struct *dm, u32 cmn_info, u64 value)
 		break;
 	case ODM_CMNINFO_PHYDM_PATCH_ID:
 		dm->iot_table.phydm_patch_id = (u32)value;
+		break;
+	case ODM_CMNINFO_RRSR_VAL:
+		dm->dm_ra_table.rrsr_val_init = (u32)value;
 		break;
 	default:
 		break;

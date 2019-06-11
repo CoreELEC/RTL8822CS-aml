@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2015 - 2018 Realtek Corporation.
+ * Copyright(c) 2015 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -232,7 +232,7 @@ int rtw_halmac_bf_cfg_sounding(struct dvobj_priv *d, enum halmac_snd_role role,
 int rtw_halmac_bf_del_sounding(struct dvobj_priv *d, enum halmac_snd_role role);
 
 int rtw_halmac_bf_cfg_csi_rate(struct dvobj_priv *d, u8 rssi, u8 current_rate,
-		u8 fixrate_en, u8 *new_rate);
+		u8 fixrate_en, u8 *new_rate, u8 *bmp_ofdm54);
 
 int rtw_halmac_bf_cfg_mu_mimo(struct dvobj_priv *d, enum halmac_snd_role role,
 		u8 *sounding_sts, u16 grouping_bitmap, u8 mu_tx_en,

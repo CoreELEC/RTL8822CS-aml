@@ -674,7 +674,13 @@ int rtw_mp_ant_tx(struct net_device *dev,
 
 	/*RTW_INFO("%s:mppriv.antenna_rx=%d\n", __func__, padapter->mppriv.antenna_tx);*/
 	pHalData->antenna_tx_path = antenna;
-
+	if (IS_HARDWARE_TYPE_8822C(padapter) && padapter->mppriv.antenna_tx == ANTENNA_B) {
+		if (padapter->mppriv.antenna_rx == ANTENNA_A || padapter->mppriv.antenna_rx == ANTENNA_B) {
+			padapter->mppriv.antenna_rx = ANTENNA_AB;
+			pHalData->AntennaRxPath = ANTENNA_AB;
+			RTW_INFO("%s:8822C Tx-B Rx Ant to AB\n", __func__);
+		}
+	}
 	SetAntenna(padapter);
 
 	wrqu->length = strlen(extra);
@@ -836,7 +842,15 @@ int rtw_mp_ctx(struct net_device *dev,
 		odm_write_dig(&pHalData->odmpriv, 0x20);
 	} else {
 		bStartTest = 1;
-		odm_write_dig(&pHalData->odmpriv, 0x7f);
+		odm_write_dig(&pHalData->odmpriv, 0x3f);
+		if (IS_HARDWARE_TYPE_8822C(padapter) && pmp_priv->antenna_tx == ANTENNA_B) {
+			if (pmp_priv->antenna_rx == ANTENNA_A || pmp_priv->antenna_rx == ANTENNA_B) {
+				pmp_priv->antenna_rx = ANTENNA_AB;
+				pHalData->AntennaRxPath = ANTENNA_AB;
+				RTW_INFO("%s:8822C Tx-B Rx Ant to AB\n", __func__);
+				SetAntenna(padapter);
+			}
+		}
 		if (pmp_priv->mode != MP_ON) {
 			if (pmp_priv->tx.stop != 1) {
 				RTW_INFO("%s:Error MP_MODE %d != ON\n", __func__, pmp_priv->mode);
@@ -1316,27 +1330,52 @@ int rtw_mp_phypara(struct net_device *dev,
 	PADAPTER padapter = rtw_netdev_priv(dev);
 	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(padapter);
 	char	input[wrqu->length];
-	u32		valxcap, ret;
+	u32		invalxcap = 0, ret = 0, bwrite_xcap = 0, hwxtaladdr = 0;
+	u16		pgval;
+
 
 	if (copy_from_user(input, wrqu->pointer, wrqu->length))
 		return -EFAULT;
 
-	RTW_INFO("%s:iwpriv in=%s\n", __func__, input);
+	RTW_INFO("%s:priv in=%s\n", __func__, input);
+	bwrite_xcap = (strncmp(input, "write_xcap=", 11) == 0) ? 1 : 0;
 
-	ret = sscanf(input, "xcap=%d", &valxcap);
+	if (bwrite_xcap == 1) {
+		ret = sscanf(input, "write_xcap=%d", &invalxcap);
+		invalxcap = invalxcap & 0x7f; /* xtal bit 0 ~6 */
+		RTW_INFO("get crystal_cap %d\n", invalxcap);
 
-	pHalData->crystal_cap = (u8)valxcap;
+		if (IS_HARDWARE_TYPE_8822C(padapter) && ret == 1) {
+			hwxtaladdr = 0x110;
+			pgval = invalxcap | 0x80; /* reserved default bit7 on */
+			pgval = pgval | pgval << 8; /* xtal xi/xo efuse 0x110 0x111 */
 
-	if (rtw_phydm_set_crystal_cap(padapter, pHalData->crystal_cap) == _FALSE) {
-		RTW_ERR("set crystal_cap failed\n");
-		rtw_warn_on(1);
+			RTW_INFO("Get crystal_cap 0x%x\n", pgval);
+			if (rtw_efuse_map_write(padapter, hwxtaladdr, 2, (u8*)&pgval) == _FAIL) {
+					RTW_INFO("%s: rtw_efuse_map_write xcap error!!\n", __func__);
+					sprintf(extra, "write xcap pgdata fail");
+					ret = -EFAULT;
+			} else
+					sprintf(extra, "write xcap pgdata ok");
+
+		}
+	} else {
+		ret = sscanf(input, "xcap=%d", &invalxcap);
+
+		if (ret == 1) {
+			pHalData->crystal_cap = (u8)invalxcap;
+			RTW_INFO("%s:crystal_cap=%d\n", __func__, pHalData->crystal_cap);
+
+			if (rtw_phydm_set_crystal_cap(padapter, pHalData->crystal_cap) == _FALSE) {
+				RTW_ERR("set crystal_cap failed\n");
+				rtw_warn_on(1);
+			}
+			sprintf(extra, "Set xcap=%d", invalxcap);
+		}
 	}
 
-	sprintf(extra, "Set xcap=%d", valxcap);
 	wrqu->length = strlen(extra) + 1;
-
-	return 0;
-
+	return ret;
 }
 
 
@@ -2285,6 +2324,84 @@ int rtw_mp_dpk_track(struct net_device *dev,
 	wrqu->data.length = strlen(extra);
 	return 0;
 }
+
+
+int rtw_bt_efuse_mask_file(struct net_device *dev,
+			struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
+{
+	char *rtw_efuse_mask_file_path;
+	u8 Status;
+	PADAPTER padapter = rtw_netdev_priv(dev);
+
+	_rtw_memset(btmaskfileBuffer, 0x00, sizeof(btmaskfileBuffer));
+
+	if (copy_from_user(extra, wrqu->data.pointer, wrqu->data.length))
+		return -EFAULT;
+
+	*(extra + wrqu->data.length) = '\0';
+
+	if (strncmp(extra, "data,", 5) == 0) {
+		u8	*pch;
+		char	*ptmp, tmp;
+		u8	count = 0;
+		u8	i = 0;
+
+		ptmp = extra;
+		pch = strsep(&ptmp, ",");
+
+		if ((pch == NULL) || (strlen(pch) == 0)) {
+			RTW_INFO("%s: parameter error(no cmd)!\n", __func__);
+			return -EFAULT;
+		}
+
+		do {
+			pch = strsep(&ptmp, ":");
+			if ((pch == NULL) || (strlen(pch) == 0))
+				break;
+			if (strlen(pch) != 2
+				|| IsHexDigit(*pch) == _FALSE
+				|| IsHexDigit(*(pch + 1)) == _FALSE
+				|| sscanf(pch, "%hhx", &tmp) != 1
+			) {
+				RTW_INFO("%s: invalid 8-bit hex! input format: data,01:23:45:67:89:ab:cd:ef...\n", __func__);
+				return -EFAULT;
+			}
+			btmaskfileBuffer[count++] = tmp;
+
+		 } while (count < 64);
+
+		for (i = 0; i < count; i++)
+			sprintf(extra, "%s:%02x", extra, btmaskfileBuffer[i]);
+
+		padapter->registrypriv.bBTFileMaskEfuse = _TRUE;
+
+		sprintf(extra, "%s\nLoad BT Efuse Mask data %d hex ok\n", extra, count);
+		wrqu->data.length = strlen(extra);
+		return 0;
+	}
+	rtw_efuse_mask_file_path = extra;
+
+	if (rtw_is_file_readable(rtw_efuse_mask_file_path) == _TRUE) {
+		RTW_INFO("%s do rtw_is_file_readable = %s! ,sizeof BT maskfileBuffer %zu\n", __func__, rtw_efuse_mask_file_path, sizeof(btmaskfileBuffer));
+		Status = rtw_efuse_file_read(padapter, rtw_efuse_mask_file_path, btmaskfileBuffer, sizeof(btmaskfileBuffer));
+		if (Status == _TRUE) {
+			padapter->registrypriv.bBTFileMaskEfuse = _TRUE;
+			sprintf(extra, "BT efuse mask file read OK\n");
+		} else {
+			padapter->registrypriv.bBTFileMaskEfuse = _FALSE;
+			sprintf(extra, "read BT efuse mask file FAIL\n");
+			RTW_INFO("%s rtw_efuse_file_read BT mask fail!\n", __func__);
+		}
+	} else {
+		padapter->registrypriv.bBTFileMaskEfuse = _FALSE;
+		sprintf(extra, "BT efuse mask file readable FAIL\n");
+		RTW_INFO("%s rtw_is_file_readable BT Mask file fail!\n", __func__);
+	}
+	wrqu->data.length = strlen(extra);
+	return 0;
+}
+
 
 int rtw_efuse_mask_file(struct net_device *dev,
 			struct iw_request_info *info,

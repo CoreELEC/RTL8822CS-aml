@@ -626,7 +626,7 @@ odm_read_and_config_mp_8822c_agc_tab(struct dm_struct *dm)
 u32
 odm_get_version_mp_8822c_agc_tab(void)
 {
-		return 32;
+		return 35;
 }
 
 /******************************************************************************
@@ -1157,7 +1157,7 @@ const u32 array_mp_8822c_phy_reg[] = {
 		0x1C34, 0xE4E42000,
 		0x1C38, 0xFFA1005E,
 		0x1C40, 0x8F588837,
-		0x1C44, 0x04400300,
+		0x1C44, 0x04400700,
 		0x1C48, 0x00000000,
 		0x1C4C, 0x00000200,
 		0x1C50, 0x8E588837,
@@ -1989,7 +1989,7 @@ odm_read_and_config_mp_8822c_phy_reg(struct dm_struct *dm)
 u32
 odm_get_version_mp_8822c_phy_reg(void)
 {
-		return 32;
+		return 35;
 }
 
 /******************************************************************************

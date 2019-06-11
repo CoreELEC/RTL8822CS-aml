@@ -64,7 +64,7 @@ mu_bfer_entry_del_88xx(struct halmac_adapter *adapter);
 
 enum halmac_ret_status
 cfg_csi_rate_88xx(struct halmac_adapter *adapter, u8 rssi, u8 cur_rate,
-		  u8 fixrate_en, u8 *new_rate);
+		  u8 fixrate_en, u8 *new_rate, u8 *bmp_ofdm54);
 
 enum halmac_ret_status
 fw_snding_88xx(struct halmac_adapter *adapter,

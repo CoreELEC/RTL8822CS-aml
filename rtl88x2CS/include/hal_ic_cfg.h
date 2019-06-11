@@ -48,6 +48,9 @@
 #ifdef CONFIG_MULTIDRV
 #endif
 
+/*feature for all IC*/
+#define RTW_DYNAMIC_RRSR
+
 #ifdef CONFIG_RTL8188E
 	#undef RTL8188E_SUPPORT
 	#undef RATE_ADAPTIVE_SUPPORT
@@ -348,6 +351,14 @@
 	#define CONFIG_SUPPORT_FIFO_DUMP
 	#define CONFIG_HW_P0_TSF_SYNC
 	#define CONFIG_BCN_RECV_TIME
+
+	#ifdef CONFIG_P2P_PS
+		#define CONFIG_P2P_PS_NOA_USE_MACID_SLEEP
+	#endif
+	#define CONFIG_RTS_FULL_BW
+	#ifdef CONFIG_LPS
+		/* #define CONFIG_LPS_1T1R */ /* Supported after FW v07 */
+	#endif
 #endif /* CONFIG_RTL8822C */
 
 #ifdef CONFIG_RTL8821C

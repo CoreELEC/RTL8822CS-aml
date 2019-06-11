@@ -5600,7 +5600,7 @@ void odm_ant_div_config(void *dm_void)
 	#endif
 
 	if (dm->support_ic_type == ODM_RTL8723D)
-		dm->ant_div_type = S0S1_TRX_HW_ANTDIV;
+		dm->ant_div_type = S0S1_SW_ANTDIV;
 #elif (DM_ODM_SUPPORT_TYPE & (ODM_CE))
 
 	PHYDM_DBG(dm, DBG_ANT_DIV, "CE Config Antenna Diversity\n");

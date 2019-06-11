@@ -407,6 +407,7 @@ enum odm_cmninfo {
 	ODM_CMNINFO_X_CAP_SETTING,
 	ODM_CMNINFO_ADVANCE_OTA,
 	ODM_CMNINFO_HP_HWID,
+	ODM_CMNINFO_DIS_DPD,
 	/*@-----------HOOK BEFORE REG INIT-----------*/
 
 	/*@Dynamic value:*/
@@ -473,6 +474,7 @@ enum odm_cmninfo {
 	ODM_CMNINFO_BT_CONTINUOUS_TURN,
 	ODM_CMNINFO_IS_DOWNLOAD_FW,
 	ODM_CMNINFO_PHYDM_PATCH_ID,
+	ODM_CMNINFO_RRSR_VAL,
 	/*@------------CALL BY VALUE-------------*/
 
 	/*@Dynamic ptr array hook itms.*/
@@ -796,6 +798,8 @@ struct dm_struct {
 	u8			is_rx_blocking_en;
 	u16			fw_offload_ability;
 	boolean			is_download_fw;
+	boolean			en_dis_dpd;
+	u16			dis_dpd_rate;
 	#if (RTL8822C_SUPPORT)
 	u8			txagc_buff[2][NUM_RATE_AC_2SS];
 	u32			bp_0x9b0;
@@ -882,9 +886,16 @@ struct dm_struct {
 	u64			rssi_trsw_iso;
 	u8			tx_ant_status; /*TX path enable*/
 	u8			rx_ant_status; /*RX path enable*/
-	#ifdef PHYDM_COMPILE_ABOVE_2SS
-	enum bb_path		tx_1ss_status; /*@Use N-X for 1SS rate*/
+	#ifdef PHYDM_COMPILE_ABOVE_4SS
+	enum bb_path		tx_4ss_status; /*@Use N-X for 4STS rate*/
 	#endif
+	#ifdef PHYDM_COMPILE_ABOVE_3SS
+	enum bb_path		tx_3ss_status; /*@Use N-X for 3STS rate*/
+	#endif
+	#ifdef PHYDM_COMPILE_ABOVE_2SS
+	enum bb_path		tx_2ss_status; /*@Use N-X for 2STS rate*/
+	#endif
+	enum bb_path		tx_1ss_status; /*@Use N-X for 1STS rate*/
 	u8			cck_lna_idx;
 	u8			cck_vga_idx;
 	u8			curr_station_id;

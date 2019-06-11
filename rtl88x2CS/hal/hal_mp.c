@@ -2084,6 +2084,13 @@ static	void mpt_StopCckContTx(
 	phy_set_bb_reg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000100);
 	}
 
+	if (IS_HARDWARE_TYPE_8188E(pAdapter) || IS_HARDWARE_TYPE_8723B(pAdapter) || 
+		IS_HARDWARE_TYPE_8703B(pAdapter) || IS_HARDWARE_TYPE_8188F(pAdapter) || 
+		IS_HARDWARE_TYPE_8723D(pAdapter) || IS_HARDWARE_TYPE_8192F(pAdapter) || 
+		IS_HARDWARE_TYPE_8821C(pAdapter) || IS_HARDWARE_TYPE_8188GTV(pAdapter)) {
+		phy_set_bb_reg(pAdapter, 0xA70, BIT(14), bDisable);/* patch Count CCK adjust Rate*/
+	}
+
 }	/* mpt_StopCckContTx */
 
 
@@ -2156,8 +2163,18 @@ static	void mpt_StartCckContTx(
 	}
 
 	if (!IS_HARDWARE_TYPE_JAGUAR_ALL(pAdapter)) {
-	phy_set_bb_reg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
-	phy_set_bb_reg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
+		phy_set_bb_reg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
+		phy_set_bb_reg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
+	}
+
+	if (IS_HARDWARE_TYPE_8188E(pAdapter) || IS_HARDWARE_TYPE_8723B(pAdapter) || 
+		IS_HARDWARE_TYPE_8703B(pAdapter) || IS_HARDWARE_TYPE_8188F(pAdapter) || 
+		IS_HARDWARE_TYPE_8723D(pAdapter) || IS_HARDWARE_TYPE_8192F(pAdapter) || 
+		IS_HARDWARE_TYPE_8821C(pAdapter) || IS_HARDWARE_TYPE_8188GTV(pAdapter)) {
+		if (pAdapter->mppriv.rateidx == MPT_RATE_1M) /* patch Count CCK adjust Rate*/
+			phy_set_bb_reg(pAdapter, 0xA70, BIT(14), bDisable);
+		else
+			phy_set_bb_reg(pAdapter, 0xA70, BIT(14), bEnable);
 	}
 
 	pMptCtx->bCckContTx = TRUE;

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -238,14 +238,15 @@ void rtw_txpwr_init_regd(struct rf_ctl_t *rfctl)
 	switch (regd) {
 	/*
 	* To support older chips without new predefined regd:
-	* - use FCC if IC or CHILE not found
+	* - use FCC if IC or CHILE or MEXICO not found
 	* - use ETSI if KCC or ACMA not found
 	*/
 	case TXPWR_LMT_IC:
 	case TXPWR_LMT_KCC:
 	case TXPWR_LMT_ACMA:
 	case TXPWR_LMT_CHILE:
-		if (regd == TXPWR_LMT_IC || regd == TXPWR_LMT_CHILE)
+	case TXPWR_LMT_MEXICO:
+		if (regd == TXPWR_LMT_IC || regd == TXPWR_LMT_CHILE || regd == TXPWR_LMT_MEXICO)
 			regd = TXPWR_LMT_FCC;
 		else if (regd == TXPWR_LMT_KCC || regd == TXPWR_LMT_ACMA)
 			regd = TXPWR_LMT_ETSI;
@@ -10271,7 +10272,7 @@ void issue_action_BSSCoexistPacket(_adapter *padapter)
 	u8 InfoContent[16] = {0};
 	u8 ICS[8][15];
 #ifdef CONFIG_80211N_HT
-	if ((pmlmepriv->num_FortyMHzIntolerant == 0) || (pmlmepriv->num_sta_no_ht == 0))
+	if ((pmlmepriv->num_FortyMHzIntolerant == 0) && (pmlmepriv->num_sta_no_ht == 0))
 		return;
 
 	if (_TRUE == pmlmeinfo->bwmode_updated)
@@ -10316,17 +10317,14 @@ void issue_action_BSSCoexistPacket(_adapter *padapter)
 	pframe = rtw_set_fixed_ie(pframe, 1, &(category), &(pattrib->pktlen));
 	pframe = rtw_set_fixed_ie(pframe, 1, &(action), &(pattrib->pktlen));
 
-
-	/*  */
-	if (pmlmepriv->num_FortyMHzIntolerant > 0) {
+	/* TODO calculate 40Mhz intolerant via ch and ch offset */
+	/* if (pmlmepriv->num_FortyMHzIntolerant > 0) */
+	{
 		u8 iedata = 0;
 
 		iedata |= BIT(2);/* 20 MHz BSS Width Request */
-
 		pframe = rtw_set_ie(pframe, EID_BSSCoexistence,  1, &iedata, &(pattrib->pktlen));
-
 	}
-
 
 	/*  */
 	_rtw_memset(ICS, 0, sizeof(ICS));
@@ -12148,7 +12146,7 @@ static void rtw_mlmeext_disconnect(_adapter *padapter)
 			{
 				_adapter *port0_iface = dvobj_get_port0_adapter(adapter_to_dvobj(padapter));
 				if (port0_iface)
-					rtw_lps_ctrl_wk_cmd(port0_iface, LPS_CTRL_CONNECT, 0);
+					rtw_lps_ctrl_wk_cmd(port0_iface, LPS_CTRL_CONNECT, RTW_CMDF_DIRECTLY);
 			}
 #endif
 		}
@@ -12291,6 +12289,8 @@ void mlmeext_joinbss_event_callback(_adapter *padapter, int join_res)
 		/* wakeup macid after join bss successfully to ensure
 			the subsequent data frames can be sent out normally */
 		rtw_hal_macid_wakeup(padapter, psta->cmn.mac_id);
+
+		rtw_xmit_queue_clear(psta);
 	}
 
 #ifndef CONFIG_IOCTL_CFG80211
@@ -12317,7 +12317,7 @@ void mlmeext_joinbss_event_callback(_adapter *padapter, int join_res)
 	#ifndef CONFIG_FW_MULTI_PORT_SUPPORT
 	if (get_hw_port(padapter) == HW_PORT0)
 	#endif
-		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_CONNECT, 0);
+		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_CONNECT, RTW_CMDF_DIRECTLY);
 #endif
 
 #ifdef CONFIG_BEAMFORMING
@@ -13683,7 +13683,7 @@ u8 setopmode_hdl(_adapter *padapter, u8 *pbuf)
 #ifdef CONFIG_LPS
 			_adapter *port0_iface = dvobj_get_port0_adapter(adapter_to_dvobj(padapter));
 			if (port0_iface)
-				rtw_lps_ctrl_wk_cmd(port0_iface, LPS_CTRL_CONNECT, 0);
+				rtw_lps_ctrl_wk_cmd(port0_iface, LPS_CTRL_CONNECT, RTW_CMDF_DIRECTLY);
 #endif
 		}
 	}
@@ -15314,6 +15314,11 @@ u8 setkey_hdl(_adapter *padapter, u8 *pbuf)
 		}
 	}
 
+#ifdef CONFIG_LPS_PG
+	if (adapter_to_pwrctl(padapter)->lps_level == LPS_PG)
+		LPS_Leave(padapter, "SET_KEY");
+#endif
+
 	/* cam entry searched is pairwise key */
 	if (used == _TRUE && rtw_camid_is_gk(padapter, cam_id) == _FALSE) {
 		s16 camid_clr;
@@ -15446,6 +15451,11 @@ u8 set_stakey_hdl(_adapter *padapter, u8 *pbuf)
 	if (cam_id < 0)
 		goto exit;
 
+#ifdef CONFIG_LPS_PG
+	if (adapter_to_pwrctl(padapter)->lps_level == LPS_PG)
+		LPS_Leave(padapter, "SET_KEY");
+#endif
+
 	/* cam entry searched is group key when setting pariwise key */
 	if (!pparm->gk && used == _TRUE && rtw_camid_is_gk(padapter, cam_id) == _TRUE) {
 		s16 camid_clr;
@@ -15547,10 +15557,15 @@ u8 add_ba_rsp_hdl(_adapter *padapter, unsigned char *pbuf)
 		#endif
 	}
 #else
-	preorder_ctrl->indicate_seq = 0xffff;
+	rtw_set_bit(RTW_RECV_ACK_OR_TIMEOUT, &preorder_ctrl->rec_abba_rsp_ack);
 	#ifdef DBG_RX_SEQ
-	RTW_INFO("DBG_RX_SEQ "FUNC_ADPT_FMT" tid:%u SN_CLEAR indicate_seq:%d, start_seq:%d\n"
-		, FUNC_ADPT_ARG(padapter), preorder_ctrl->tid, preorder_ctrl->indicate_seq, pparm->start_seq);
+	RTW_INFO("DBG_RX_SEQ "FUNC_ADPT_FMT" tid:%u SN_CLEAR indicate_seq:%d, start_seq:%d preorder_ctrl->rec_abba_rsp_ack =%lu \n"
+		, FUNC_ADPT_ARG(padapter)
+		, preorder_ctrl->tid
+		, preorder_ctrl->indicate_seq
+		, pparm->start_seq
+		,preorder_ctrl->rec_abba_rsp_ack
+		);
 	#endif
 #endif
 

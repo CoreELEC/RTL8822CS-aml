@@ -368,7 +368,7 @@ void phydm_config_trx_path_v2(void *dm_void, char input[][16], u32 *_used,
 	if ((strcmp(input[1], help) == 0)) {
 		if (dm->support_ic_type & ODM_RTL8822C) {
 			PDM_SNPF(out_len, used, output + used, out_len - used,
-				 "{en} {tx_path} {rx_path} {0:auto, else:1ss_tx_path}\n"
+				 "{en} {tx_path} {rx_path} {ff:auto, else:1ss_tx_path}\n"
 				 );
 		} else {
 			PDM_SNPF(out_len, used, output + used, out_len - used,

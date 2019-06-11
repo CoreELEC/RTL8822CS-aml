@@ -334,7 +334,7 @@ static void gethwreg(PADAPTER adapter, u8 variable, u8 *val)
 			*val |= PS_TOGGLE;
 		break;
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN) || defined(CONFIG_FWLPS_IN_IPS)
 	case HW_VAR_RPWM_TOG:
 		*val = rtw_read8(adapter, REG_SDIO_HRPWM1_8822C);
 		*val &= BIT_TOGGLE_8822C;
@@ -418,6 +418,7 @@ void rtl8822cs_set_hal_ops(PADAPTER adapter)
 	ops->read_adapter_info = read_adapter_info;
 
 	ops->hal_init = rtl8822cs_init;
+	ops->hal_deinit = rtl8822cs_deinit;
 
 	ops->init_xmit_priv = rtl8822cs_init_xmit_priv;
 	ops->free_xmit_priv = rtl8822cs_free_xmit_priv;

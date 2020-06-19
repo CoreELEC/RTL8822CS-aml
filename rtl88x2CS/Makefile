@@ -2226,9 +2226,11 @@ endif
 ARCH ?= arm64
 CROSS_COMPILE ?= /4.4_S905L_8822bs_compile/gcc-linaro-aarch64-linux-gnu-4.9-2014.09_linux/bin/aarch64-linux-gnu-
 ifndef KSRC
-KSRC := /4.4_S905L_8822bs_compile/common
+EXTRA_CFLAGS += -w
+KSRC := $(KERNEL_SRC)
+EXTRA_CFLAGS += $(foreach d,$(shell find $(shell cd $(KERNEL_SRC)/$(M);pwd) -type d),$(shell echo " -I$(d)"))
 # To locate output files in a separate directory.
-KSRC += O=/4.4_S905L_8822bs_compile/KERNEL_OBJ
+#KSRC += O=/4.4_S905L_8822bs_compile/KERNEL_OBJ
 endif
 
 ifeq ($(CONFIG_RTL8822B), y)
@@ -2410,11 +2412,13 @@ obj-m := $(MODULE_NAME).o
 else
 
 export CONFIG_RTL8822CS = m
+M ?= $(shell pwd)
 
 all: modules
 
 modules:
-	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C $(KSRC) M=$(shell pwd)  modules
+	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C $(KSRC) M=$(M)  modules
+	$(CROSS_COMPILE)strip --strip-unneeded ${OUT_DIR}/$(M)/$(MODULE_NAME).ko
 
 strip:
 	$(CROSS_COMPILE)strip $(MODULE_NAME).ko --strip-unneeded
@@ -2426,6 +2430,11 @@ install:
 uninstall:
 	rm -f $(MODDESTDIR)/$(MODULE_NAME).ko
 	/sbin/depmod -a ${KVER}
+
+modules_install:
+	@$(MAKE) INSTALL_MOD_STRIP=1 M=$(M) -C $(KSRC) modules_install
+	mkdir -p ${OUT_DIR}/../vendor_lib/modules
+	cd ${OUT_DIR}/$(M)/; find -name $(MODULE_NAME).ko -exec cp {} ${OUT_DIR}/../vendor_lib/modules/88x2cs.ko \;
 
 backup_rtlwifi:
 	@echo "Making backup rtlwifi drivers"
@@ -2469,7 +2478,7 @@ config_r:
 .PHONY: modules clean
 
 clean:
-	#$(MAKE) -C $(KSRC) M=$(shell pwd) clean
+	#$(MAKE) -C $(KSRC) M=$(M) clean
 	cd hal ; rm -fr */*/*/*.mod.c */*/*/*.mod */*/*/*.o */*/*/.*.cmd */*/*/*.ko
 	cd hal ; rm -fr */*/*.mod.c */*/*.mod */*/*.o */*/.*.cmd */*/*.ko
 	cd hal ; rm -fr */*.mod.c */*.mod */*.o */.*.cmd */*.ko

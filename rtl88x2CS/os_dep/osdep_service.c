@@ -2213,8 +2213,10 @@ static int writeFile(struct file *fp, char *buf, int len)
 * @param pathname the name of the path to test
 * @return Linux specific error code
 */
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 static int isDirReadable(const char *pathname, u32 *sz)
 {
+
 	struct path path;
 	int error = 0;
 

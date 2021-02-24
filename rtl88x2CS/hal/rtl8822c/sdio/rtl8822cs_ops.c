@@ -27,7 +27,7 @@ static void intf_chip_configure(PADAPTER adapter)
 	phal = GET_HAL_DATA(adapter);
 
 #ifdef RTW_RX_AGGREGATION
-	phal->rxagg_mode = (RX_AGG_MODE)HALMAC_RX_AGG_MODE_DMA;
+	phal->rxagg_mode = HALMAC_RX_AGG_MODE_DMA;
 	phal->rxagg_dma_size = 0xff;
 	phal->rxagg_dma_timeout= 0x20;
 #endif
@@ -230,6 +230,10 @@ static void _cancel_thread(PADAPTER adapter)
 	/* stop xmit_buf_thread */
 	if (xmitpriv->SdioXmitThread) {
 		_rtw_up_sema(&xmitpriv->SdioXmitSema);
+	#ifdef SDIO_FREE_XMIT_BUF_SEMA
+		rtw_sdio_free_xmitbuf_sema_up(xmitpriv);
+		rtw_sdio_free_xmitbuf_sema_down(xmitpriv);
+	#endif
 		rtw_thread_stop(xmitpriv->SdioXmitThread);
 		xmitpriv->SdioXmitThread = NULL;
 	}
@@ -300,6 +304,21 @@ static u8 sethwreg(PADAPTER adapter, u8 variable, u8 *val)
 		rtw_write8(adapter, 0x8f, req_fw_ps);
 	}
 	break;
+	case HW_VAR_SET_DRV_ERLY_INT:
+		switch (*val) {
+		#ifdef CONFIG_TDLS
+		#ifdef CONFIG_TDLS_CH_SW
+			case TDLS_BCN_ERLY_ON:
+				adapter->tdlsinfo.chsw_info.bcn_early_reg_bkp = rtw_read8(adapter, REG_DRVERLYINT);
+				rtw_write8(adapter, REG_DRVERLYINT, 20);
+				break;
+			case TDLS_BCN_ERLY_OFF:
+				rtw_write8(adapter, REG_DRVERLYINT, adapter->tdlsinfo.chsw_info.bcn_early_reg_bkp);
+				break;
+		#endif
+		#endif
+		}
+		break;
 
 	default:
 		ret = rtl8822c_sethwreg(adapter, variable, val);
@@ -424,6 +443,9 @@ void rtl8822cs_set_hal_ops(PADAPTER adapter)
 	ops->free_xmit_priv = rtl8822cs_free_xmit_priv;
 	ops->hal_xmit = rtl8822cs_hal_xmit;
 	ops->mgnt_xmit = rtl8822cs_mgnt_xmit;
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	ops->hal_mgmt_xmitframe_enqueue = rtl8822cs_hal_mgmt_xmit_enqueue;
+#endif
 	ops->hal_xmitframe_enqueue = rtl8822cs_hal_xmit_enqueue;
 #ifdef CONFIG_XMIT_THREAD_MODE
 	ops->xmit_thread_handler = rtl8822cs_xmit_buf_handler;

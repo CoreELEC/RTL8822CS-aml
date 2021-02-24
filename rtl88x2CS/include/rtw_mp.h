@@ -300,6 +300,10 @@ enum {
 #ifdef CONFIG_WOWLAN
 	MP_WOW_ENABLE,
 	MP_WOW_SET_PATTERN,
+#ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
+	MP_WOW_SET_KEEP_ALIVE_PATTERN,
+#endif /*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
+
 #endif
 #ifdef CONFIG_AP_WOWLAN
 	MP_AP_WOW_ENABLE,
@@ -388,6 +392,8 @@ struct mp_priv {
 	BOOLEAN mplink_btx;
 
 	bool tssitrk_on;
+	bool efuse_update_file;
+	char efuse_file_path[128];
 };
 
 typedef struct _IOCMD_STRUCT_ {
@@ -728,7 +734,7 @@ void hal_mpt_SetContinuousTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetSingleCarrierTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetSingleToneTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart);
-void mpt_ProSetPMacTx(PADAPTER	Adapter);
+u8 mpt_ProSetPMacTx(PADAPTER	Adapter);
 void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter , BOOLEAN bMain);
 void mp_phy_switch_rf_path_set(PADAPTER pAdapter , u8 *pstate);
 u8 MP_PHY_QueryRFPathSwitch(PADAPTER pAdapter);

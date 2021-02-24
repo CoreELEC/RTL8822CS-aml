@@ -25,6 +25,9 @@
  *	Increase the scanning timeout because of increasing the SURVEY_TO value. */
 #define	SCANQUEUE_LIFETIME 20000 /* 20sec, unit:msec */
 
+#define MAX_UNASSOC_STA_CNT 128
+#define UNASSOC_STA_LIFETIME_MS 60000
+
 /*pmlmepriv->fw_state*/
 #define WIFI_NULL_STATE				0x00000000
 #define WIFI_ASOC_STATE				0x00000001 /* Linked */
@@ -57,7 +60,7 @@
 /*#define WIFI_UNDEFINED_STATE			0x08000000*/
 /*#define WIFI_UNDEFINED_STATE			0x10000000*/
 /*#define WIFI_UNDEFINED_STATE			0x20000000*/
-/*#define WIFI_UNDEFINED_STATE			0x40000000*/
+#define WIFI_CSA_UPDATE_BEACON			0x40000000
 #define WIFI_MONITOR_STATE			0x80000000
 
 
@@ -103,7 +106,7 @@ void rtw_wfd_st_switch(struct sta_info *sta, bool on);
 #define MLME_IS_OPCH_SW(adapter) CHK_MLME_STATE(adapter, WIFI_OP_CH_SWITCHING)
 #define MLME_IS_WPS(adapter) CHK_MLME_STATE(adapter, WIFI_UNDER_WPS)
 
-#if defined(CONFIG_IOCTL_CFG80211) && defined(CONFIG_P2P)
+#ifdef CONFIG_IOCTL_CFG80211
 #define MLME_IS_ROCH(adapter) (rtw_cfg80211_get_is_roch(adapter) == _TRUE)
 #else
 #define MLME_IS_ROCH(adapter) 0
@@ -156,7 +159,14 @@ enum {
 	MLME_MESH_STOPPED,
 	MLME_OPCH_SWITCH,
 };
-
+#ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
+enum MODE_WOW_KEEP_ALIVE_PATTERN {
+	wow_keep_alive_pattern_disable = 0,
+	wow_keep_alive_pattern_tx,
+	wow_keep_alive_pattern_trx,
+	wow_keep_alive_pattern_trx_with_ack
+};
+#endif /*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
 enum dot11AuthAlgrthmNum {
 	dot11AuthAlgrthm_Open = 0,
 	dot11AuthAlgrthm_Shared,
@@ -344,20 +354,6 @@ struct scan_limit_info {
 #endif /* CONFIG_P2P_OP_CHK_SOCIAL_CH */
 };
 
-#ifdef CONFIG_IOCTL_CFG80211
-struct cfg80211_wifidirect_info {
-	_timer					remain_on_ch_timer;
-	u8						restore_channel;
-	struct ieee80211_channel	remain_on_ch_channel;
-	enum nl80211_channel_type	remain_on_ch_type;
-	ATOMIC_T ro_ch_cookie_gen;
-	u64 remain_on_ch_cookie;
-	bool is_ro_ch;
-	struct wireless_dev *ro_ch_wdev;
-	systime last_ro_ch_time; /* this will be updated at the beginning and end of ro_ch */
-};
-#endif /* CONFIG_IOCTL_CFG80211 */
-
 #ifdef CONFIG_P2P_WOWLAN
 
 enum P2P_WOWLAN_RECV_FRAME_TYPE {
@@ -387,10 +383,7 @@ struct wifidirect_info {
 	_timer					pre_tx_scan_timer;
 	_timer					reset_ch_sitesurvey;
 	_timer					reset_ch_sitesurvey2;	/*	Just for resetting the scan limit function by using p2p nego */
-#ifdef CONFIG_CONCURRENT_MODE
-	/*	Used to switch the channel between legacy AP and listen state. */
-	_timer					ap_p2p_switch_timer;
-#endif
+
 	struct tx_provdisc_req_info	tx_prov_disc_info;
 	struct rx_provdisc_req_info rx_prov_disc_info;
 	struct tx_invite_req_info	invitereq_info;
@@ -466,10 +459,6 @@ struct wifidirect_info {
 #ifdef CONFIG_CONCURRENT_MODE
 	u16						ext_listen_interval;	/*	The interval to be available with legacy AP (ms) */
 	u16						ext_listen_period;	/*	The time period to be available for P2P listen state (ms) */
-#ifdef CONFIG_IOCTL_CFG80211
-	u32						min_home_dur;			/* min duration for traffic, home_time */
-	u32						max_away_dur;			/* max acceptable away duration, home_away_time */
-#endif /* CONFIG_IOCTL_CFG80211 */
 #endif
 #ifdef CONFIG_P2P_PS
 	enum P2P_PS_MODE		p2p_ps_mode; /* indicate p2p ps mode */
@@ -503,6 +492,7 @@ struct tdls_ch_switch {
 	u8	addr[ETH_ALEN];
 	u8	off_ch_num;
 	u8	ch_offset;
+	u8	bcn_early_reg_bkp;
 	u32	cur_time;
 	u8	delay_switch_back;
 	u8	dump_stack;
@@ -554,6 +544,28 @@ enum {
 	RTW_ROAM_ACTIVE = BIT2,
 };
 
+#define UNASOC_STA_SRC_RX_BMC		0
+#define UNASOC_STA_SRC_RX_NMY_UC	1
+#define UNASOC_STA_SRC_NUM			2
+
+#define UNASOC_STA_MODE_DISABLED	0
+#define UNASOC_STA_MODE_INTERESTED	1
+#define UNASOC_STA_MODE_ALL			2
+#define UNASOC_STA_MODE_NUM			3
+
+#define UNASOC_STA_DEL_CHK_SKIP		0
+#define UNASOC_STA_DEL_CHK_ALIVE	1
+#define UNASOC_STA_DEL_CHK_DELETED	2
+
+#ifdef CONFIG_RTW_MULTI_AP
+struct unassoc_sta_info {
+	_list list;
+	u8 addr[ETH_ALEN];
+	u8 interested;
+	s8 recv_signal_power;
+	systime time;
+};
+#endif
 
 struct mlme_priv {
 
@@ -712,12 +724,14 @@ struct mlme_priv {
 	u8 *auth_rsp;
 	u32 auth_rsp_len;
 #endif
+#endif /* CONFIG_AP_MODE and CONFIG_NATIVEAP_MLME */
+
 	u8 *assoc_req;
 	u32 assoc_req_len;
-
 	u8 *assoc_rsp;
 	u32 assoc_rsp_len;
 
+#if defined(CONFIG_AP_MODE) && defined (CONFIG_NATIVEAP_MLME)
 	/* u8 *wps_probe_req_ie; */
 	/* u32 wps_probe_req_ie_len; */
 
@@ -805,6 +819,19 @@ struct mlme_priv {
 	u8 vendor_ie[WLAN_MAX_VENDOR_IE_NUM][WLAN_MAX_VENDOR_IE_LEN];
 	u32 vendor_ielen[WLAN_MAX_VENDOR_IE_NUM];
 #endif
+#ifdef CONFIG_RTW_MULTI_AP
+	u8 unassoc_sta_mode_of_stype[UNASOC_STA_SRC_NUM];
+	_queue unassoc_sta_queue;
+	_queue free_unassoc_sta_queue;
+	u8 *free_unassoc_sta_buf;
+	u32 interested_unassoc_sta_cnt;
+	u32 max_unassoc_sta_cnt;
+#ifdef CONFIG_PLATFORM_CMAP_INTFS
+	struct unassoc_sta_info cmap_unassoc_sta[CMAP_UNASSOC_METRICS_STA_MAX];
+	u8 cmap_unassoc_sta_cnt;
+	_timer cmap_unassoc_sta_timer;
+#endif
+#endif
 };
 
 #define mlme_set_scan_to_timer(mlme, ms) \
@@ -855,7 +882,6 @@ extern void rtw_wmm_event_callback(PADAPTER padapter, u8 *pbuf);
 #ifdef CONFIG_IEEE80211W
 void rtw_sta_timeout_event_callback(_adapter *adapter, u8 *pbuf);
 #endif /* CONFIG_IEEE80211W */
-
 thread_return event_thread(thread_context context);
 
 extern void rtw_free_network_queue(_adapter *adapter, u8 isfreeall);
@@ -1128,6 +1154,19 @@ struct sta_media_status_rpt_cmd_parm {
 	struct sta_info *sta;
 	bool connected;
 };
+
+#ifdef CONFIG_RTW_MULTI_AP
+void rtw_unassoc_sta_set_mode(_adapter *adapter, u8 stype, u8 mode);
+bool rtw_unassoc_sta_src_chk(_adapter *adapter, u8 stype);
+void dump_unassoc_sta(void *sel, _adapter *adapter);
+void rtw_del_unassoc_sta_queue(_adapter *adapter);
+void rtw_del_unassoc_sta(_adapter *adapter, u8 *addr);
+void rtw_rx_add_unassoc_sta(_adapter *adapter, u8 stype, u8 *addr, s8 recv_signal_power);
+void rtw_add_interested_unassoc_sta(_adapter *adapter, u8 *addr);
+void rtw_undo_interested_unassoc_sta(_adapter *adapter, u8 *addr);
+void rtw_undo_all_interested_unassoc_sta(_adapter *adapter);
+u8 rtw_search_unassoc_sta(_adapter *adapter, u8 *addr, struct unassoc_sta_info *ret_sta);
+#endif
 
 void rtw_sta_media_status_rpt(_adapter *adapter, struct sta_info *sta, bool connected);
 u8 rtw_sta_media_status_rpt_cmd(_adapter *adapter, struct sta_info *sta, bool connected);

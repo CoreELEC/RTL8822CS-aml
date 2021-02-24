@@ -225,6 +225,9 @@ struct hal_spec_t {
 	u8 sec_cam_ent_num;
 	u8 sec_cap;
 	u8 wow_cap;
+	u8 macid_cap;
+	u16 macid_txrpt;
+	u8 macid_txrpt_pgsz;
 
 	u8 rfpath_num_2g:4;	/* used for tx power index path */
 	u8 rfpath_num_5g:4;	/* used for tx power index path */
@@ -246,9 +249,7 @@ struct hal_spec_t {
 
 	u8 wl_func;		/* value of WL_FUNC_XXX */
 
-#if CONFIG_TX_AC_LIFETIME
 	u8 tx_aclt_unit_factor; /* how many 32us */
-#endif
 
 	u8 rx_tsf_filter:1;
 
@@ -407,6 +408,7 @@ typedef struct hal_com_data {
 	u8 max_tx_cnt;
 	u8	tx_nss; /*tx Spatial Streams - GET_HAL_TX_NSS*/
 	u8	rx_nss; /*rx Spatial Streams - GET_HAL_RX_NSS*/
+	u8 txpath_cap_num_nss[4]; /* capable path num for NSS TX, [0] for 1SS, [3] for 4SS */
 
 	u8	PackageType;
 	u8	antenna_test;
@@ -525,7 +527,8 @@ typedef struct hal_com_data {
 
 	bool set_entire_txpwr;
 
-#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B)
+#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B) \
+    || defined(CONFIG_RTL8723F)
 	u32 txagc_set_buf;
 #endif
 
@@ -594,7 +597,6 @@ typedef struct hal_com_data {
 	u8			IQK_MP_Switch;
 	u8			bScanInProcess;
 	u8			phydm_init_result; /*BB and RF para match or not*/
-	s8			shift_rxagc;	/* -63 ~ 63 */
 	/******** PHY DM & DM Section **********/
 
 
@@ -670,7 +672,7 @@ typedef struct hal_com_data {
 	/* SDIO Rx FIFO related. */
 	/*  */
 	u8			SdioRxFIFOCnt;
-#ifdef CONFIG_RTL8822C
+#if defined (CONFIG_RTL8822C) || defined (CONFIG_RTL8192F)
 	u32			SdioRxFIFOSize;
 #else
 	u16			SdioRxFIFOSize;

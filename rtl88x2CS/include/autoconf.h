@@ -56,7 +56,6 @@
 	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif /* CONFIG_IOCTL_CFG80211 */
 
-#define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
 	#define CONFIG_NATIVEAP_MLME
 	#ifndef CONFIG_NATIVEAP_MLME
@@ -65,7 +64,6 @@
 	/*#define CONFIG_FIND_BEST_CHANNEL*/
 #endif
 
-#define CONFIG_P2P
 #ifdef CONFIG_P2P
 	#define CONFIG_WFD	/* Wi-Fi display */
 	#define CONFIG_P2P_REMOVE_GROUP_INFO
@@ -96,9 +94,6 @@
 #endif /* CONFIG_TDLS */
 
 /*#define CONFIG_RTW_80211K*/
-
-#define CONFIG_LAYER2_ROAMING
-#define CONFIG_LAYER2_ROAMING_RESUME
 
 #define CONFIG_BEAMFORMING
 
@@ -146,6 +141,8 @@
 #define RTW_XMIT_THREAD_HIGH_PRIORITY_AGG
 #define CONFIG_SDIO_HOOK_DEV_SHUTDOWN
 /*#define CONFIG_SDIO_TX_ENABLE_AVAL_INT*/ /* not implemented yet */
+#define SDIO_FREE_XMIT_BUF_SEMA
+/* #define DBG_SDIO_FREE_XMIT_BUF_SEMA */
 /* #define CONFIG_SDIO_TX_FORMAT_DUMMY_AUTO */
 #define CONFIG_SDIO_RX_COPY
 #define DBG_SDIO	1
@@ -279,4 +276,4 @@
 
 /* #define CONFIG_DISABLE_ODM */
 /* #define CONFIG_NO_FW */
- 
+

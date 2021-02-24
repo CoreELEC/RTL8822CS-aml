@@ -48,6 +48,7 @@ enum phydm_h2c_cmd {
 	PHYDM_H2C_MCC			= 0x4f,
 	PHYDM_H2C_RESP_TX_PATH_CTRL	= 0x50,
 	PHYDM_H2C_RESP_TX_ANT_CTRL	= 0x51,
+	PHYDM_H2C_FW_DM_CTRL		= 0x55,
 	ODM_MAX_H2CCMD
 };
 
@@ -315,6 +316,9 @@ void phydm_run_in_thread_cmd(struct dm_struct *dm, void (*func)(void *),
 			     void *context);
 u8 phydm_get_tx_rate(struct dm_struct *dm);
 u8 phydm_get_tx_power_dbm(struct dm_struct *dm, u8 rf_path,
+					u8 rate, u8 bandwidth, u8 channel);
+
+s16 phydm_get_tx_power_mdbm(struct dm_struct *dm, u8 rf_path,
 					u8 rate, u8 bandwidth, u8 channel);
 
 u32 phydm_rfe_ctrl_gpio(struct dm_struct *dm, u8 gpio_num);

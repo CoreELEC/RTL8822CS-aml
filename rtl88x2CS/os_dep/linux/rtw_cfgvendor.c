@@ -284,7 +284,7 @@ int rtw_dev_get_feature_set(struct net_device *dev)
 	feature_set |= WIFI_FEATURE_SCAN_RAND;
 #endif
 #endif
-
+	feature_set |= WIFI_FEATURE_SET_LATENCY_MODE;
 	return feature_set;
 }
 

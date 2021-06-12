@@ -383,7 +383,7 @@ typedef struct {
                                  // monotonously increasing integer
 } wifi_ring_buffer_status;
 
-#ifdef CONFIG_RTW_CFGVENDOR_LLSTATS
+//#ifdef CONFIG_RTW_CFGVENDOR_LLSTATS
 #define STATS_MAJOR_VERSION      1
 #define STATS_MINOR_VERSION      0
 #define STATS_MICRO_VERSION      0
@@ -609,7 +609,7 @@ typedef struct {
 #define WIFI_STATS_IFACE_AC           0x00000040      // all ac statistics (within interface statistics)
 #define WIFI_STATS_IFACE_CONTENTION   0x00000080      // all contention (min, max, avg) statistics (within ac statisctics)
 
-#endif /* CONFIG_RTW_CFGVENDOR_LLSTATS */
+//#endif /* CONFIG_RTW_CFGVENDOR_LLSTATS */
 
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) || defined(RTW_VENDOR_EXT_SUPPORT)

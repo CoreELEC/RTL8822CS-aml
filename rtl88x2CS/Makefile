@@ -2266,7 +2266,7 @@ CROSS_COMPILE ?= /4.4_S905L_8822bs_compile/gcc-linaro-aarch64-linux-gnu-4.9-2014
 ifndef KSRC
 EXTRA_CFLAGS += -w
 KSRC := $(KERNEL_SRC)
-EXTRA_CFLAGS += $(foreach d,$(shell find $(shell cd $(KERNEL_SRC)/$(M);pwd) -type d),$(shell echo " -I$(d)"))
+EXTRA_CFLAGS += $(foreach d,$(shell test -d $(KERNEL_SRC)/$(M) && find $(shell cd $(KERNEL_SRC)/$(M);pwd) -type d),$(shell echo " -I$(d)"))
 # To locate output files in a separate directory.
 #KSRC += O=/4.4_S905L_8822bs_compile/KERNEL_OBJ
 endif

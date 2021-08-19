@@ -399,14 +399,19 @@ static int napi_recv(_adapter *padapter, int budget)
 		rx_ok = _FALSE;
 
 #ifdef CONFIG_RTW_GRO
-		/*	 
+		/*
 			cloned SKB use dataref to avoid kernel release it.
 			But dataref changed in napi_gro_receive.
 			So, we should prevent cloned SKB go into napi_gro_receive.
 		*/
 		if (pregistrypriv->en_gro && !skb_cloned(pskb)) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+			rtw_napi_gro_receive(&padapter->napi, pskb);
+			rx_ok = _TRUE;
+#else
 			if (rtw_napi_gro_receive(&padapter->napi, pskb) != GRO_DROP)
 				rx_ok = _TRUE;
+#endif
 			goto next;
 		}
 #endif /* CONFIG_RTW_GRO */
@@ -454,7 +459,7 @@ void dynamic_napi_th_chk (_adapter *adapter)
 	if (adapter->registrypriv.en_napi) {
 		struct dvobj_priv *dvobj;
 		struct registry_priv *registry;
-	
+
 		dvobj = adapter_to_dvobj(adapter);
 		registry = &adapter->registrypriv;
 		if (dvobj->traffic_stat.cur_rx_tp > registry->napi_threshold)
@@ -526,7 +531,7 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, union recv_frame *r
 #ifdef CONFIG_RTW_NAPI
 #ifdef CONFIG_RTW_NAPI_DYNAMIC
 		if (!skb_queue_empty(&precvpriv->rx_napi_skb_queue)
-			&& !adapter_to_dvobj(padapter)->en_napi_dynamic			
+			&& !adapter_to_dvobj(padapter)->en_napi_dynamic
 			)
 			napi_recv(padapter, RTL_NAPI_WEIGHT);
 #endif
@@ -642,7 +647,7 @@ void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame)
 #endif /* CONFIG_HOSTAPD_MLME */
 
 #ifdef CONFIG_WIFI_MONITOR
-/* 
+/*
    precv_frame: impossible to be NULL
    precv_frame: free by caller
  */
@@ -731,4 +736,3 @@ void rtw_os_read_port(_adapter *padapter, struct recv_buf *precvbuf)
 #endif
 
 }
-

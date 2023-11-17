@@ -167,6 +167,10 @@ struct rtw_wdev_priv {
 	bool block;
 	bool block_scan;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0)
+	u32 mgmt_mask;
+#endif
+
 	/**
 	 * mgmt_regs: bitmap of management frame subtypes registered for the
 	 * 	given interface

@@ -6677,6 +6677,9 @@ static int cfg80211_rtw_del_virtual_intf(struct wiphy *wiphy,
 #endif
 )
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
+	u32 rtw_mask = BIT(IEEE80211_STYPE_PROBE_REQ >> 4);
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
 	struct net_device *ndev = wdev_to_ndev(wdev);
 #endif
@@ -8283,11 +8286,18 @@ static void cfg80211_rtw_mgmt_frame_register(struct wiphy *wiphy,
 	adapter = (_adapter *)rtw_netdev_priv(ndev);
 	pwdev_priv = adapter_wdev_data(adapter);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
 #ifdef CONFIG_DEBUG_CFG80211
 	RTW_INFO(FUNC_ADPT_FMT" frame_type:%x, reg:%d\n", FUNC_ADPT_ARG(adapter),
 		frame_type, reg);
+#else
+	RTW_INFO(FUNC_ADPT_FMT " old_regs:%x new_regs:%x\n",
+		 FUNC_ADPT_ARG(adapter), pwdev_priv->mgmt_mask, upd->interface_stypes);
 #endif
-
+#endif
+	/* Wait QC Verify */
+	return;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
 	switch (frame_type) {
 	case IEEE80211_STYPE_AUTH: /* 0x00B0 */
 		if (reg > 0)
@@ -8312,6 +8322,13 @@ static void cfg80211_rtw_mgmt_frame_register(struct wiphy *wiphy,
 	default:
 		break;
 	}
+#else
+	if ((upd->interface_stypes & rtw_mask) == (pwdev_priv->mgmt_mask & rtw_mask))
+ 		return;
+
+
+	pwdev_priv->mgmt_mask = upd->interface_stypes;
+#endif
 
 exit:
 	return;

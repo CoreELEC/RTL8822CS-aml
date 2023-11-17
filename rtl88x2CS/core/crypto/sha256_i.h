@@ -11,6 +11,7 @@
 
 #define SHA256_BLOCK_SIZE 64
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
 struct _sha256_state {
 	u64 length;
 	u32 state[8], curlen;
@@ -21,5 +22,5 @@ void _sha256_init(struct _sha256_state *md);
 int sha256_process(struct _sha256_state *md, const unsigned char *in,
 		   unsigned long inlen);
 int sha256_done(struct _sha256_state *md, unsigned char *out);
-
+#endif
 #endif /* SHA256_I_H */
